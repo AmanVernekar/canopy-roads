@@ -364,33 +364,75 @@ export const scrape_funding_page = tool({
 // the Web Unlocker handles bot detection. Returns up to `max_results`
 // entries with title, url, and snippet.
 // ────────────────────────────────────────────────────────────────────────
+function stripTags(s: string): string {
+  return s.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim()
+}
+
 function parseDdgResults(
   html: string,
   max: number
 ): Array<{ title: string; url: string; snippet: string }> {
-  const results: Array<{ title: string; url: string; snippet: string }> = []
-  // Matches the <div class="result"> .. </div> block per result. DDG's HTML
-  // is stable enough for this: result__a anchors hold title+url, result__snippet
-  // holds the description.
-  const blockRe = /<div class="result[^"]*?"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/g
+  // Don't try to scope to a parent <div class="result"> — DDG's nested
+  // structure trips greedy regexes. Instead, walk all result__a anchors and
+  // result__snippet anchors independently and zip them by order.
+  const links: Array<{ title: string; url: string }> = []
+  const linkRe =
+    /<a\b[^>]*class="[^"]*\bresult__a\b[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi
   let m: RegExpExecArray | null
-  while ((m = blockRe.exec(html)) && results.length < max) {
+  while ((m = linkRe.exec(html)) && links.length < max) {
+    let url = m[1]
+    if (url.startsWith("//")) url = "https:" + url
+    const uddg = /[?&]uddg=([^&]+)/.exec(url)
+    if (uddg) url = decodeURIComponent(uddg[1])
+    if (!url.startsWith("http")) continue
+    const title = stripTags(m[2])
+    if (title && url) links.push({ title, url })
+  }
+  const snippets: string[] = []
+  const snipRe =
+    /<a\b[^>]*class="[^"]*\bresult__snippet\b[^"]*"[^>]*>([\s\S]*?)<\/a>/gi
+  let s: RegExpExecArray | null
+  while ((s = snipRe.exec(html))) snippets.push(stripTags(s[1]))
+  return links.map((l, i) => ({
+    ...l,
+    snippet: (snippets[i] ?? "").slice(0, 240),
+  }))
+}
+
+// Bing fallback parser — a different SERP HTML shape.
+function parseBingResults(
+  html: string,
+  max: number
+): Array<{ title: string; url: string; snippet: string }> {
+  const results: Array<{ title: string; url: string; snippet: string }> = []
+  // Each organic result is wrapped in <li class="b_algo">.
+  const itemRe = /<li[^>]*class="[^"]*\bb_algo\b[^"]*"[^>]*>([\s\S]*?)<\/li>/gi
+  let m: RegExpExecArray | null
+  while ((m = itemRe.exec(html)) && results.length < max) {
     const block = m[1]
-    const linkMatch = /<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/.exec(block)
-    if (!linkMatch) continue
-    let rawUrl = linkMatch[1]
-    // DDG wraps real URLs in /l/?uddg=<encoded>
-    const uddg = /[?&]uddg=([^&]+)/.exec(rawUrl)
-    if (uddg) rawUrl = decodeURIComponent(uddg[1])
-    if (!rawUrl.startsWith("http")) continue
-    const title = linkMatch[2].replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim()
-    const snippetMatch = /<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>/.exec(block)
-    const snippet = snippetMatch
-      ? snippetMatch[1].replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim()
-      : ""
-    if (title && rawUrl) results.push({ title, url: rawUrl, snippet: snippet.slice(0, 240) })
+    const titleMatch = /<h2[^>]*>\s*<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/i.exec(block)
+    if (!titleMatch) continue
+    const url = titleMatch[1]
+    if (!url.startsWith("http")) continue
+    const title = stripTags(titleMatch[2])
+    // Bing's snippet is in <p> or <div class="b_caption"><p>...
+    const snipMatch = /<p[^>]*>([\s\S]*?)<\/p>/i.exec(block)
+    const snippet = snipMatch ? stripTags(snipMatch[1]) : ""
+    results.push({ title, url, snippet: snippet.slice(0, 240) })
   }
   return results
+}
+
+async function brightDataFetch(url: string, token: string, zone: string) {
+  const r = await fetch("https://api.brightdata.com/request", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ zone, url, format: "raw" }),
+  })
+  return r
 }
 
 export const web_search = tool({
@@ -409,39 +451,61 @@ export const web_search = tool({
       }
     }
     const zone = process.env.BRIGHT_DATA_ZONE ?? "web_unlocker1"
-    const ddgUrl = `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}`
-    try {
-      const r = await fetch("https://api.brightdata.com/request", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ zone, url: ddgUrl, format: "raw" }),
-      })
-      if (!r.ok) {
-        const errText = await r.text().catch(() => "")
-        return {
-          error: `Bright Data search returned ${r.status}: ${errText.slice(0, 200)}`,
-          query,
+    // Try DDG (html.duckduckgo.com is more parser-friendly than the SPA at
+    // duckduckgo.com), then fall back to Bing if DDG returns nothing.
+    const attempts: Array<{ engine: string; url: string }> = [
+      { engine: "duckduckgo", url: `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}` },
+      { engine: "bing", url: `https://www.bing.com/search?q=${encodeURIComponent(query)}` },
+    ]
+    let lastDiagnostic: { engine: string; status: number; bytes: number; sample: string } | null = null
+    for (const a of attempts) {
+      try {
+        const r = await brightDataFetch(a.url, token, zone)
+        if (!r.ok) {
+          const errText = await r.text().catch(() => "")
+          lastDiagnostic = {
+            engine: a.engine,
+            status: r.status,
+            bytes: errText.length,
+            sample: errText.slice(0, 200),
+          }
+          continue
+        }
+        const html = await r.text()
+        const results =
+          a.engine === "duckduckgo"
+            ? parseDdgResults(html, max_results)
+            : parseBingResults(html, max_results)
+        if (results.length > 0) {
+          return {
+            query,
+            engine: `${a.engine} (via Bright Data)`,
+            results,
+            note: "Pass interesting URLs to scrape_funding_page to verify status / extract details.",
+          }
+        }
+        lastDiagnostic = {
+          engine: a.engine,
+          status: r.status,
+          bytes: html.length,
+          // Strip the head + scripts so the sample is more useful for debug.
+          sample: stripTags(html.slice(0, 4000)).slice(0, 240),
+        }
+      } catch (e) {
+        lastDiagnostic = {
+          engine: a.engine,
+          status: -1,
+          bytes: 0,
+          sample: e instanceof Error ? e.message : String(e),
         }
       }
-      const html = await r.text()
-      const results = parseDdgResults(html, max_results)
-      return {
-        query,
-        engine: "duckduckgo (via Bright Data)",
-        results,
-        note:
-          results.length === 0
-            ? "No results parsed — the page format may have changed, or the search produced none. Try a different query."
-            : "Pass interesting URLs to scrape_funding_page to verify status / extract details.",
-      }
-    } catch (e) {
-      return {
-        error: `web_search request failed: ${e instanceof Error ? e.message : String(e)}`,
-        query,
-      }
+    }
+    return {
+      query,
+      results: [],
+      diagnostic: lastDiagnostic,
+      note:
+        "Both DuckDuckGo and Bing failed to return parseable results. Either Bright Data is returning a captcha / block page, or the page format has changed. Try a more specific query, or proceed with search_funding_schemes + get_fallback_funds.",
     }
   },
 })

@@ -23,52 +23,134 @@ interface ReasoningTraceProps {
   streamingText: string
 }
 
-// Map our 6 tool names to friendly labels and icons so the trace reads like
-// a human-readable workflow log, not a function-call dump.
-const TOOL_META: Record<
-  string,
-  { label: string; icon: React.ComponentType<{ size?: number }>; sub: string }
-> = {
+// Map our tools to friendly labels and icons. The subtitle is computed from
+// the live tool args so the trace reads "Pulling literature · street trees,
+// UK temperate" instead of a static string that's the same for every call.
+type ArgsRecord = Record<string, unknown>
+
+function asString(v: unknown): string | null {
+  return typeof v === "string" && v.trim() ? v.trim() : null
+}
+function asStringArray(v: unknown): string[] | null {
+  return Array.isArray(v)
+    ? (v.filter((x) => typeof x === "string" && x.trim()) as string[])
+    : null
+}
+function shortHost(u: string): string {
+  try {
+    return new URL(u).hostname.replace(/^www\./, "")
+  } catch {
+    return u
+  }
+}
+
+interface ToolMeta {
+  label: string
+  icon: React.ComponentType<{ size?: number }>
+  defaultSub: string
+  describe?: (args: ArgsRecord | undefined) => string | null
+}
+
+const TOOL_META: Record<string, ToolMeta> = {
   get_lsoa_context: {
     label: "Reading LSOA profile",
     icon: Database,
-    sub: "vulnerability · canopy · demographics · streets",
+    defaultSub: "vulnerability · canopy · demographics · streets",
+    describe: (args) => {
+      const code = asString(args?.lsoa_code)
+      return code ? `LSOA ${code} — vulnerability · canopy · demographics` : null
+    },
   },
   query_lsoa_subset: {
     label: "Probing the data",
     icon: MapPin,
-    sub: "filtering streets / buildings to test a hypothesis",
+    defaultSub: "filtering streets / buildings to test a hypothesis",
+    describe: (args) => {
+      const target = asString(args?.target)
+      const filters = (args?.filters as ArgsRecord | undefined) ?? {}
+      const highways = asStringArray(filters?.highway_in)
+      const namedOnly = filters?.named_only === true
+      const parts: string[] = []
+      if (target) parts.push(target)
+      if (highways?.length) parts.push(highways.join(", "))
+      if (namedOnly) parts.push("named only")
+      return parts.length ? parts.join(" · ") : null
+    },
   },
   search_evidence: {
     label: "Pulling literature",
     icon: BookOpen,
-    sub: "OpenAlex peer-reviewed cooling-effect studies",
+    defaultSub: "peer-reviewed cooling-effect studies (OpenAlex)",
+    describe: (args) => {
+      const intervention = asString(args?.intervention)
+      const climate = asString(args?.climate_context)
+      if (!intervention) return null
+      return climate
+        ? `cooling evidence for ${intervention} (${climate})`
+        : `cooling evidence for ${intervention}`
+    },
+  },
+  web_search: {
+    label: "Searching the web",
+    icon: Search,
+    defaultSub: "DuckDuckGo via Bright Data — looking for current funds & news",
+    describe: (args) => {
+      const q = asString(args?.query)
+      return q ? `“${q}”` : null
+    },
   },
   search_funding_schemes: {
     label: "Shortlisting funds",
     icon: Banknote,
-    sub: "matching interventions to UK funding URLs",
+    defaultSub: "matching interventions to UK funding URLs",
+    describe: (args) => {
+      const types = asStringArray(args?.intervention_types)
+      if (!types?.length) return null
+      return `funds covering ${types.slice(0, 3).join(", ")}${
+        types.length > 3 ? "…" : ""
+      }`
+    },
   },
   scrape_funding_page: {
     label: "Live scraping fund page",
     icon: Globe,
-    sub: "Bright Data Web Unlocker — verifying status & deadline",
+    defaultSub: "Bright Data Web Unlocker — verifying status & deadline",
+    describe: (args) => {
+      const url = asString(args?.url)
+      return url ? shortHost(url) : null
+    },
   },
   get_fallback_funds: {
     label: "Loading fallback funds",
     icon: FileSearch,
-    sub: "hand-verified profiles (live scrape unavailable)",
+    defaultSub: "hand-verified profiles (live scrape unavailable)",
+    describe: (args) => {
+      const types = asStringArray(args?.intervention_types)
+      return types?.length
+        ? `fallbacks for ${types.slice(0, 3).join(", ")}${types.length > 3 ? "…" : ""}`
+        : null
+    },
   },
 }
 
-function getToolMeta(toolName: string) {
-  return (
-    TOOL_META[toolName] ?? {
+function getToolMeta(
+  toolName: string,
+  args?: ArgsRecord
+): { label: string; icon: React.ComponentType<{ size?: number }>; sub: string } {
+  const meta = TOOL_META[toolName]
+  if (!meta) {
+    return {
       label: toolName.replace(/_/g, " "),
       icon: Zap,
       sub: "",
     }
-  )
+  }
+  const dyn = meta.describe?.(args)
+  return {
+    label: meta.label,
+    icon: meta.icon,
+    sub: dyn ?? meta.defaultSub,
+  }
 }
 
 interface ToolPart {
@@ -107,7 +189,10 @@ function ToolCallCard({ part }: { part: ToolPart }) {
     result = part.output
   }
 
-  const meta = getToolMeta(toolName)
+  const meta = getToolMeta(
+    toolName,
+    args && typeof args === "object" ? (args as ArgsRecord) : undefined
+  )
   const Icon = meta.icon
   const isComplete =
     state === "result" || state === "output-available" || result != null
