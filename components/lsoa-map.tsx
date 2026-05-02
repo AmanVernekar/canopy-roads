@@ -10,8 +10,31 @@ import type maplibregl from "maplibre-gl"
 // Lazy-load maplibre to avoid SSR issues
 let maplibre: typeof import("maplibre-gl") | null = null
 
-const CARTO_STYLE =
-  "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
+// Inline style with OSM tiles (no external style.json required)
+const DARK_STYLE: maplibregl.StyleSpecification = {
+  version: 8,
+  sources: {
+    osm: {
+      type: "raster",
+      tiles: [
+        "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+        "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+        "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+      ],
+      tileSize: 256,
+      attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
+    },
+  },
+  layers: [
+    {
+      id: "osm-tiles",
+      type: "raster",
+      source: "osm",
+      minzoom: 0,
+      maxzoom: 19,
+    },
+  ],
+}
 
 interface PopupInfo {
   lng: number
@@ -112,7 +135,7 @@ export function LsoaMap({ className }: LsoaMapProps) {
       
       const map = new maplibreGL.Map({
         container: mapContainerRef.current,
-        style: CARTO_STYLE,
+        style: DARK_STYLE,
         center: [-0.09, 51.495],
         zoom: 12,
         attributionControl: false,
