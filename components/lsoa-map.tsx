@@ -105,6 +105,7 @@ export function LsoaMap({ className }: LsoaMapProps) {
   const markerRefs = useRef<maplibregl.Marker[]>([])
 
   const {
+    selectedCity,
     selectedLsoa,
     lsoaData,
     setLsoaData,
@@ -115,13 +116,32 @@ export function LsoaMap({ className }: LsoaMapProps) {
     isAgentRunning,
   } = useCanopyStore()
 
-  // Load LSOA data from public JSON
+  // Load LSOA data — per-city JSON. Falls back to the legacy single-borough
+  // file (lsoas.json) if the per-city file isn't present yet (mid-data-load).
   useEffect(() => {
-    fetch("/data/lsoas.json")
-      .then((r) => r.json())
-      .then((data: LsoaData) => setLsoaData(data))
-      .catch(console.error)
-  }, [setLsoaData])
+    let cancelled = false
+    const tryFetch = async (url: string) => {
+      const r = await fetch(url)
+      if (!r.ok) throw new Error(`${url} → ${r.status}`)
+      return (await r.json()) as LsoaData
+    }
+    ;(async () => {
+      try {
+        const data = await tryFetch(`/data/lsoas-${selectedCity}.json`)
+        if (!cancelled) setLsoaData(data)
+      } catch {
+        try {
+          const data = await tryFetch("/data/lsoas.json")
+          if (!cancelled) setLsoaData(data)
+        } catch (e) {
+          console.error("LSOA data fetch failed for", selectedCity, e)
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [selectedCity, setLsoaData])
 
   // Build GeoJSON from the loaded data
   const buildGeoJSON = useCallback(
@@ -285,6 +305,30 @@ export function LsoaMap({ className }: LsoaMapProps) {
       })
     } else {
       ;(map.getSource("lsoas") as maplibregl.GeoJSONSource).setData(geojson)
+      // Re-fit on dataset swap (city change). Compute bbox of new dataset and
+      // ease the camera into it.
+      const coords: [number, number][] = []
+      geojson.features.forEach((f) => {
+        const geom = f.geometry as GeoJSON.Polygon | GeoJSON.MultiPolygon
+        if (geom.type === "Polygon") {
+          geom.coordinates[0].forEach(([lng, lat]) => coords.push([lng, lat]))
+        } else if (geom.type === "MultiPolygon") {
+          geom.coordinates.forEach((poly) =>
+            poly[0].forEach(([lng, lat]) => coords.push([lng, lat]))
+          )
+        }
+      })
+      if (coords.length > 0) {
+        const lngs = coords.map(([lng]) => lng)
+        const lats = coords.map(([, lat]) => lat)
+        map.fitBounds(
+          [
+            [Math.min(...lngs), Math.min(...lats)],
+            [Math.max(...lngs), Math.max(...lats)],
+          ],
+          { padding: 60, duration: 600, maxZoom: 12 }
+        )
+      }
     }
   }, [mapLoaded, lsoaData, buildGeoJSON, selectedLsoa, hoveredLsoa, setSelectedLsoa, resetAgent])
 

@@ -83,7 +83,15 @@ export type AgentMessage =
   | { role: "assistant"; content: string; id: string }
   | { role: "tool"; toolName: string; input: unknown; output?: unknown; id: string }
 
+export type CitySlug = "london" | "manchester" | "birmingham"
+export const CITIES: { slug: CitySlug; label: string; centre: [number, number]; zoom: number }[] = [
+  { slug: "london", label: "Greater London", centre: [-0.118, 51.509], zoom: 9.5 },
+  { slug: "manchester", label: "Manchester", centre: [-2.244, 53.479], zoom: 11 },
+  { slug: "birmingham", label: "Birmingham", centre: [-1.898, 52.486], zoom: 10.5 },
+]
+
 interface CanopyStore {
+  selectedCity: CitySlug
   selectedLsoa: string | null
   lsoaData: LsoaData
   isAgentRunning: boolean
@@ -95,6 +103,7 @@ interface CanopyStore {
   // Non-reactive ref to the live MapLibre instance, set by lsoa-map.tsx on
   // mount. Used by the dossier PDF exporter to grab the rendered canvas.
   mapInstance: MapLibreMap | null
+  setSelectedCity: (city: CitySlug) => void
   setSelectedLsoa: (code: string | null) => void
   setLsoaData: (data: LsoaData) => void
   setIsAgentRunning: (running: boolean) => void
@@ -112,6 +121,7 @@ interface CanopyStore {
 }
 
 export const useCanopyStore = create<CanopyStore>((set) => ({
+  selectedCity: "london",
   selectedLsoa: null,
   lsoaData: {},
   isAgentRunning: false,
@@ -121,6 +131,7 @@ export const useCanopyStore = create<CanopyStore>((set) => ({
   selectedAreaName: null,
   mapInstance: null,
 
+  setSelectedCity: (city) => set({ selectedCity: city, selectedLsoa: null }),
   setSelectedLsoa: (code) => set({ selectedLsoa: code }),
   setLsoaData: (data) => set({ lsoaData: data }),
   setIsAgentRunning: (running) => set({ isAgentRunning: running }),
