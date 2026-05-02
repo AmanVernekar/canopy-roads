@@ -21,7 +21,7 @@ export default function Page() {
               className="text-lg font-semibold tracking-tight text-zinc-100"
               style={{ fontFamily: "var(--font-geist-sans)", letterSpacing: "-0.03em" }}
             >
-              Shade
+              Canopy
             </span>
             <span className="text-[11px] text-zinc-600 font-mono hidden sm:inline">
               Urban heat intervention planner

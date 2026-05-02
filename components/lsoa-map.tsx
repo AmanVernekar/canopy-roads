@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useCallback, useState } from "react"
-import { useShadeStore, type LsoaData, type ParsedDossier } from "@/lib/store"
+import { useCanopyStore, type LsoaData } from "@/lib/store"
 import { vulnerabilityColour, normaliseScore, SELECTED_STROKE } from "@/lib/colours"
 import { TreePine, House, Square, Umbrella, Trees, MapPin } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
@@ -59,8 +59,8 @@ export function LsoaMap({ className }: LsoaMapProps) {
   const [popupInfo, setPopupInfo] = useState<PopupInfo | null>(null)
   const markerRefs = useRef<maplibregl.Marker[]>([])
 
-  const { selectedLsoa, lsoaData, setLsoaData, setSelectedLsoa, parsedDossier, resetAgent, isAgentRunning } =
-    useShadeStore()
+  const { selectedLsoa, lsoaData, setLsoaData, setSelectedLsoa, parsedDossier, resetAgent } =
+    useCanopyStore()
 
   // Load LSOA data from public JSON
   useEffect(() => {
@@ -102,11 +102,15 @@ export function LsoaMap({ className }: LsoaMapProps) {
     if (!mapContainerRef.current || mapRef.current) return
 
     let mounted = true
-    import("maplibre-gl").then((ml) => {
+    
+    import("maplibre-gl").then((maplibreModule) => {
       if (!mounted || !mapContainerRef.current) return
-      maplibre = ml
-
-      const map = new ml.Map({
+      
+      // MapLibre exports Map directly (not as default.Map)
+      const maplibreGL = maplibreModule.default || maplibreModule
+      maplibre = maplibreGL as typeof import("maplibre-gl")
+      
+      const map = new maplibreGL.Map({
         container: mapContainerRef.current,
         style: CARTO_STYLE,
         center: [-0.09, 51.495],
@@ -114,13 +118,19 @@ export function LsoaMap({ className }: LsoaMapProps) {
         attributionControl: false,
       })
 
-      map.addControl(new ml.NavigationControl({ showCompass: false }), "bottom-right")
+      map.addControl(new maplibreGL.NavigationControl({ showCompass: false }), "bottom-right")
 
       map.on("load", () => {
         if (!mounted) return
         mapRef.current = map
         setMapLoaded(true)
       })
+      
+      map.on("error", (e: unknown) => {
+        console.error("Map error:", e)
+      })
+    }).catch((err) => {
+      console.error("Failed to load MapLibre:", err)
     })
 
     return () => {
@@ -254,9 +264,10 @@ export function LsoaMap({ className }: LsoaMapProps) {
 
     if (!parsedDossier) return
 
-    import("maplibre-gl").then((ml) => {
+    import("maplibre-gl").then((maplibreModule) => {
+      const maplibreGL = maplibreModule.default || maplibreModule
+      
       parsedDossier.interventions.forEach((intervention) => {
-        const Icon = getInterventionIcon(intervention.type)
         const color = getInterventionColor(intervention.type)
 
         intervention.target_locations.forEach((loc) => {
@@ -294,7 +305,7 @@ export function LsoaMap({ className }: LsoaMapProps) {
             setPopupInfo(null)
           })
 
-          const marker = new ml.Marker({ element: el })
+          const marker = new maplibreGL.Marker({ element: el })
             .setLngLat([loc.lng, loc.lat])
             .addTo(map)
 

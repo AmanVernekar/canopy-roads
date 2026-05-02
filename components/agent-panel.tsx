@@ -13,7 +13,7 @@ import {
   AlertCircle,
   Activity,
 } from "lucide-react"
-import { useShadeStore } from "@/lib/store"
+import { useCanopyStore } from "@/lib/store"
 import type { ParsedDossier } from "@/lib/store"
 import { ReasoningTrace } from "@/components/reasoning-trace"
 import { DossierView } from "@/components/dossier-view"
@@ -73,7 +73,7 @@ export function AgentPanel() {
     setParsedDossier,
     setStreamingText,
     streamingText,
-  } = useShadeStore()
+  } = useCanopyStore()
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const prevSelectedRef = useRef<string | null>(null)

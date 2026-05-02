@@ -38,7 +38,7 @@ export type AgentMessage =
   | { role: "assistant"; content: string; id: string }
   | { role: "tool"; toolName: string; input: unknown; output?: unknown; id: string }
 
-interface ShadeStore {
+interface CanopyStore {
   selectedLsoa: string | null
   lsoaData: LsoaData
   isAgentRunning: boolean
@@ -55,7 +55,7 @@ interface ShadeStore {
   resetAgent: () => void
 }
 
-export const useShadeStore = create<ShadeStore>((set) => ({
+export const useCanopyStore = create<CanopyStore>((set) => ({
   selectedLsoa: null,
   lsoaData: {},
   isAgentRunning: false,

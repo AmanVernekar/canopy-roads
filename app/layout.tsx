@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Shade — Urban heat intervention planner',
+  title: 'Canopy — Urban heat intervention planner',
   description: 'Cooling plans for streets that need them most. Agentic urban heat island intervention planning for UK local authorities.',
   generator: 'v0.app',
 }
