@@ -22,7 +22,8 @@ export function normaliseScore(
   return (score - min) / (max - min)
 }
 
-// Cyan accent for selected LSOA
-export const SELECTED_STROKE = "#22d3ee" // cyan-400
-export const DEFAULT_STROKE = "rgba(255,255,255,0.5)"
+// Field-journal accents on the dark map. Selected = warm gold so it pops
+// against the heat-vulnerability palette without clashing.
+export const SELECTED_STROKE = "#f0c674" // warm gold (paler than fund accent for visibility on dark map)
+export const DEFAULT_STROKE = "rgba(255,255,255,0.45)"
 export const HOVER_STROKE = "rgba(255,255,255,0.9)"

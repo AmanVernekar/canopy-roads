@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Geist, Geist_Mono, Source_Serif_4 } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
@@ -13,9 +13,17 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
 })
 
+// Source Serif 4 for dossier headings — sells the "civic document" feel.
+const sourceSerif = Source_Serif_4({
+  subsets: ["latin"],
+  variable: "--font-source-serif",
+  weight: ["400", "600", "700"],
+})
+
 export const metadata: Metadata = {
-  title: 'Canopy — Urban heat intervention planner',
-  description: 'Cooling plans for streets that need them most. Agentic urban heat island intervention planning for UK local authorities.',
+  title: 'Canopy — Climate adaptation planner',
+  description:
+    'Heat + flood adaptation plans for UK neighbourhoods that need them most. An agent that turns vulnerability data into grant-ready intervention dossiers.',
   generator: 'v0.app',
 }
 
@@ -25,8 +33,11 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${geist.variable} ${geistMono.variable} bg-zinc-950`}>
-      <body className="font-sans antialiased">
+    <html
+      lang="en"
+      className={`${geist.variable} ${geistMono.variable} ${sourceSerif.variable} bg-paper`}
+    >
+      <body className="font-sans antialiased text-ink">
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>

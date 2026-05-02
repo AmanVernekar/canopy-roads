@@ -28,7 +28,7 @@ function StatCard({
   label,
   value,
   unit,
-  color = "text-zinc-300",
+  color = "text-ink",
   tooltip,
 }: {
   icon: React.ComponentType<{ size?: number; className?: string }>
@@ -39,17 +39,17 @@ function StatCard({
   tooltip?: { title: string; body: React.ReactNode }
 }) {
   return (
-    <div className="bg-zinc-900/60 border border-zinc-800/60 rounded-md p-3">
+    <div className="bg-paper-elevated border border-line rounded-md p-3">
       <div className="flex items-center gap-1.5 mb-1.5">
-        <Icon size={11} className="text-zinc-600" />
-        <span className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest">
+        <Icon size={11} className="text-ink-subtle" />
+        <span className="text-[9px] font-mono text-ink-subtle uppercase tracking-widest">
           {label}
         </span>
         {tooltip && <InfoTooltip title={tooltip.title} body={tooltip.body} />}
       </div>
       <p className={`text-base font-mono font-medium ${color}`}>
         {value}
-        {unit && <span className="text-xs text-zinc-600 ml-1">{unit}</span>}
+        {unit && <span className="text-xs text-ink-subtle ml-1">{unit}</span>}
       </p>
     </div>
   )
@@ -189,8 +189,8 @@ export function AgentPanel() {
   return (
     <div className="h-full flex flex-col gap-0 overflow-hidden">
       {/* ─── Selected area card ─── */}
-      <div className="flex-shrink-0 border-b border-zinc-800/60 p-4">
-        <p className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+      <div className="flex-shrink-0 border-b border-line p-4">
+        <p className="text-[9px] font-mono text-ink-subtle uppercase tracking-widest mb-3 flex items-center gap-1.5">
           Selected area
           <InfoTooltip {...TERM_DEFINITIONS.lsoa} />
         </p>
@@ -201,7 +201,7 @@ export function AgentPanel() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="text-zinc-600 text-xs font-mono py-2"
+              className="text-ink-subtle text-xs font-mono py-2"
             >
               Click any area on the map to begin.
             </motion.div>
@@ -212,10 +212,10 @@ export function AgentPanel() {
               animate={{ opacity: 1, y: 0 }}
             >
               <div className="mb-2.5">
-                <p className="text-base font-medium text-zinc-100 leading-tight">
+                <p className="text-base font-medium text-ink leading-tight">
                   {selectedAreaName ?? selectedFeature.name}
                 </p>
-                <p className="text-[10px] font-mono text-zinc-500 mt-0.5">
+                <p className="text-[10px] font-mono text-ink-muted mt-0.5">
                   {selectedAreaName
                     ? `${selectedFeature.name} · ${selectedLsoa}`
                     : selectedLsoa}
@@ -228,10 +228,10 @@ export function AgentPanel() {
                   value={selectedFeature.vulnerability_score.toFixed(2)}
                   color={
                     selectedFeature.vulnerability_score >= 0.7
-                      ? "text-red-400"
+                      ? "text-heat-deep"
                       : selectedFeature.vulnerability_score >= 0.5
-                      ? "text-amber-400"
-                      : "text-green-400"
+                      ? "text-heat"
+                      : "text-success"
                   }
                   tooltip={TERM_DEFINITIONS.vulnerability}
                 />
@@ -263,7 +263,7 @@ export function AgentPanel() {
 
       {/* ─── Agent reasoning ─── */}
       <div className="flex-shrink-0 flex items-center gap-2 px-4 pt-4 pb-2">
-        <p className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest flex-1">
+        <p className="text-[9px] font-mono text-ink-subtle uppercase tracking-widest flex-1">
           Agent reasoning
         </p>
         {isAgentRunning && (
@@ -271,14 +271,14 @@ export function AgentPanel() {
             <motion.div
               animate={{ opacity: [1, 0.4] }}
               transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}
-              className="flex items-center gap-1 text-[9px] font-mono text-cyan-400"
+              className="flex items-center gap-1 text-[9px] font-mono text-evidence"
             >
               <Activity size={9} />
               <span>Running</span>
             </motion.div>
             <button
               onClick={() => stop()}
-              className="flex items-center gap-1 text-[9px] font-mono text-red-400 hover:text-red-300 bg-red-400/10 hover:bg-red-400/20 border border-red-400/30 rounded px-1.5 py-0.5 transition-colors uppercase tracking-widest"
+              className="flex items-center gap-1 text-[9px] font-mono text-danger hover:text-heat-deep bg-heat-soft/60 hover:bg-heat-soft border border-danger/40 rounded px-1.5 py-0.5 transition-colors uppercase tracking-widest"
               aria-label="Stop analysis"
             >
               <SquareIcon size={8} fill="currentColor" />
@@ -295,13 +295,13 @@ export function AgentPanel() {
       >
         {/* Error state */}
         {error && (
-          <div className="flex items-start gap-2 bg-red-950/30 border border-red-900/50 rounded-md p-3">
-            <AlertCircle size={13} className="text-red-400 flex-shrink-0 mt-0.5" />
+          <div className="flex items-start gap-2 bg-heat-soft border border-danger/30 rounded-md p-3">
+            <AlertCircle size={13} className="text-danger flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="text-xs text-red-300 mb-2">Analysis failed. {error.message}</p>
+              <p className="text-xs text-heat-deep mb-2">Analysis failed. {error.message}</p>
               <button
                 onClick={handleRetry}
-                className="flex items-center gap-1.5 text-[10px] font-mono text-red-400 hover:text-red-300 transition-colors"
+                className="flex items-center gap-1.5 text-[10px] font-mono text-danger hover:text-heat-deep transition-colors"
               >
                 <RefreshCw size={10} />
                 Retry
@@ -323,9 +323,9 @@ export function AgentPanel() {
               key="dossier"
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              className="border-t border-zinc-800/60 pt-4 mt-4"
+              className="border-t border-line pt-4 mt-4"
             >
-              <p className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-3">
+              <p className="text-[9px] font-mono text-ink-subtle uppercase tracking-widest mb-3">
                 Dossier
               </p>
               <DossierView
@@ -339,8 +339,8 @@ export function AgentPanel() {
 
         {/* ── Follow-up Q&A trace, below the dossier ── */}
         {(followupMessages.length > 0 || isStreamingFollowup) && (
-          <div className="border-t border-zinc-800/60 pt-4 mt-4">
-            <p className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+          <div className="border-t border-line pt-4 mt-4">
+            <p className="text-[9px] font-mono text-ink-subtle uppercase tracking-widest mb-3 flex items-center gap-1.5">
               <MessageSquare size={10} /> Follow-up
             </p>
             <ReasoningTrace
@@ -355,10 +355,10 @@ export function AgentPanel() {
 
       {/* ─── Follow-up chat input ─── */}
       {(parsedDossier || messages.length > 1) && (
-        <div className="flex-shrink-0 border-t border-zinc-800/60 p-3 bg-zinc-950">
+        <div className="flex-shrink-0 border-t border-line p-3 bg-paper-elevated">
           <div className="flex items-center gap-1.5 mb-2">
-            <MessageSquare size={10} className="text-zinc-600" />
-            <p className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest">
+            <MessageSquare size={10} className="text-ink-subtle" />
+            <p className="text-[9px] font-mono text-ink-subtle uppercase tracking-widest">
               Ask a follow-up
             </p>
           </div>
@@ -375,12 +375,12 @@ export function AgentPanel() {
               onChange={(e) => setFollowupText(e.target.value)}
               placeholder="e.g. swap shade structures for cool roofs — what changes?"
               disabled={isAgentRunning}
-              className="flex-1 bg-zinc-900 border border-zinc-800 rounded-md px-3 py-2 text-[12px] text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-400/50 transition-colors disabled:opacity-50"
+              className="flex-1 bg-paper border border-line rounded-md px-3 py-2 text-[12px] text-ink placeholder:text-ink-subtle focus:outline-none focus:border-evidence/60 transition-colors disabled:opacity-50"
             />
             <button
               type="submit"
               disabled={isAgentRunning || !followupText.trim()}
-              className="flex items-center gap-1.5 bg-cyan-400/15 hover:bg-cyan-400/25 disabled:opacity-30 disabled:cursor-not-allowed border border-cyan-400/40 rounded-md px-3 py-2 text-[11px] font-mono text-cyan-400 transition-colors"
+              className="flex items-center gap-1.5 bg-evidence-soft hover:bg-evidence-soft/80 disabled:opacity-30 disabled:cursor-not-allowed border border-evidence/40 rounded-md px-3 py-2 text-[11px] font-mono text-evidence-deep transition-colors"
             >
               <Send size={11} />
               Ask

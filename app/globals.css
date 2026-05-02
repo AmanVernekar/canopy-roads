@@ -4,80 +4,131 @@
 
 @custom-variant dark (&:is(.dark *));
 
-:root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
+/* ──────────────────────────────────────────────────────────────────
+   Canopy "civic field journal" theme
+   Warm off-white paper, deep ink, domain-coloured accents.
+   The map (left column) intentionally stays dark — high contrast
+   ink illustration on cream paper.
+   ────────────────────────────────────────────────────────────────── */
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
+:root {
+  /* Surface */
+  --paper:           #f7f4ee;   /* main background */
+  --paper-elevated:  #fbf8f1;   /* cards */
+  --paper-deep:      #efeadc;   /* recessed wells, code blocks */
+  --paper-edge:      #e6dfd0;   /* hover states */
+
+  /* Lines */
+  --line:            #e2dccf;
+  --line-strong:     #cdc4ae;
+
+  /* Ink */
+  --ink:             #1f1d18;
+  --ink-muted:       #5d574c;
+  --ink-subtle:      #8c8576;
+  --ink-faint:       #b3aa97;
+
+  /* Domain accents */
+  --c-heat:          #b9462b;   /* terracotta */
+  --c-heat-soft:     #f0d3c5;
+  --c-heat-deep:     #7d2615;
+
+  --c-flood:         #2d5d8f;   /* slate blue */
+  --c-flood-soft:    #cfdde9;
+  --c-flood-deep:    #1a3d63;
+
+  --c-fund:          #a87216;   /* aged gold */
+  --c-fund-soft:     #ecdcb1;
+  --c-fund-deep:     #6e4a09;
+
+  --c-evidence:      #4a6741;   /* forest */
+  --c-evidence-soft: #d6e0cf;
+  --c-evidence-deep: #2f4429;
+
+  --c-trees:         #4a7c59;   /* deeper green for cooling/trees marker */
+  --c-water:         #3b87a8;   /* SuDS / raingarden / flood-attenuation */
+  --c-shade:         #c47e1c;   /* shade structures */
+  --c-roof:          #6987a8;   /* cool / green roofs */
+  --c-paving:        #8a7a64;   /* permeable paving */
+
+  --c-warn:          #b8531a;
+  --c-info:          #5b7b9a;
+  --c-success:       #4a7c59;
+  --c-danger:        #9c2a13;
+
+  /* shadcn semantic tokens — mapped to our palette so existing bg-background,
+     text-foreground, border-border, etc. paint correctly without rewriting
+     every utility class. */
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--paper-elevated);
+  --card-foreground: var(--ink);
+  --popover: var(--paper-elevated);
+  --popover-foreground: var(--ink);
+  --primary: var(--c-evidence);
+  --primary-foreground: var(--paper);
+  --secondary: var(--paper-deep);
+  --secondary-foreground: var(--ink);
+  --muted: var(--paper-deep);
+  --muted-foreground: var(--ink-muted);
+  --accent: var(--paper-deep);
+  --accent-foreground: var(--ink);
+  --destructive: var(--c-danger);
+  --destructive-foreground: var(--paper);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--c-evidence);
+  --radius: 0.5rem;
+  --chart-1: var(--c-heat);
+  --chart-2: var(--c-flood);
+  --chart-3: var(--c-evidence);
+  --chart-4: var(--c-fund);
+  --chart-5: var(--c-water);
+  --sidebar: var(--paper-elevated);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--c-evidence);
+  --sidebar-primary-foreground: var(--paper);
+  --sidebar-accent: var(--paper-deep);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--line);
+  --sidebar-ring: var(--c-evidence);
 }
 
 @theme inline {
-  --font-sans: 'Geist', 'Geist Fallback';
-  --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  /* Domain-coloured Tailwind utilities — bg-heat, text-flood, border-line, etc. */
+  --color-paper: var(--paper);
+  --color-paper-elevated: var(--paper-elevated);
+  --color-paper-deep: var(--paper-deep);
+  --color-paper-edge: var(--paper-edge);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-subtle: var(--ink-subtle);
+  --color-ink-faint: var(--ink-faint);
+  --color-heat: var(--c-heat);
+  --color-heat-soft: var(--c-heat-soft);
+  --color-heat-deep: var(--c-heat-deep);
+  --color-flood: var(--c-flood);
+  --color-flood-soft: var(--c-flood-soft);
+  --color-flood-deep: var(--c-flood-deep);
+  --color-fund: var(--c-fund);
+  --color-fund-soft: var(--c-fund-soft);
+  --color-fund-deep: var(--c-fund-deep);
+  --color-evidence: var(--c-evidence);
+  --color-evidence-soft: var(--c-evidence-soft);
+  --color-evidence-deep: var(--c-evidence-deep);
+  --color-trees: var(--c-trees);
+  --color-water: var(--c-water);
+  --color-shade: var(--c-shade);
+  --color-roof: var(--c-roof);
+  --color-paving: var(--c-paving);
+  --color-warn: var(--c-warn);
+  --color-info: var(--c-info);
+  --color-success: var(--c-success);
+  --color-danger: var(--c-danger);
+
+  /* shadcn token bridges (so utilities like bg-background still resolve) */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -97,23 +148,15 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
+
+  --font-sans: 'Geist', 'Geist Fallback', ui-sans-serif, system-ui;
+  --font-mono: 'Geist Mono', 'Geist Mono Fallback', ui-monospace;
+  --font-serif: 'Source Serif 4', 'Source Serif Pro', Georgia, 'Times New Roman', serif;
 }
 
 @layer base {
@@ -121,69 +164,174 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    background: var(--paper);
+    color: var(--ink);
+    /* Subtle paper grain. Pure CSS so no asset to ship. */
+    background-image:
+      radial-gradient(rgba(31, 29, 24, 0.025) 1px, transparent 1px);
+    background-size: 4px 4px;
   }
+  /* Serif heading utility for the dossier and section titles */
+  .font-serif { font-family: var(--font-serif); }
 }
 
-/* Override theme to zinc-950 dark-first */
-:root {
-  --background: oklch(0.09 0 0);
-  --foreground: oklch(0.96 0 0);
-  --card: oklch(0.11 0 0);
-  --card-foreground: oklch(0.96 0 0);
-  --border: oklch(0.18 0 0);
-  --input: oklch(0.18 0 0);
-  --muted: oklch(0.14 0 0);
-  --muted-foreground: oklch(0.50 0 0);
-  --accent: oklch(0.14 0 0);
-  --accent-foreground: oklch(0.96 0 0);
-  --primary: oklch(0.74 0.18 195);  /* cyan-400 */
-  --primary-foreground: oklch(0.09 0 0);
-  --ring: oklch(0.74 0.18 195);
-}
-
-/* Thin scrollbar for trace panel */
+/* ──────────────────────────────────────────────────────────────────
+   Scrollbars — match paper, not zinc.
+   ────────────────────────────────────────────────────────────────── */
 .shade-scroll::-webkit-scrollbar {
-  width: 4px;
+  width: 6px;
 }
 .shade-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
 .shade-scroll::-webkit-scrollbar-thumb {
-  background: oklch(0.22 0 0);
-  border-radius: 2px;
+  background: var(--line-strong);
+  border-radius: 3px;
 }
 .shade-scroll::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.30 0 0);
+  background: var(--ink-faint);
 }
 
-/* MapLibre marker reset */
-.maplibregl-ctrl-bottom-right {
-  bottom: 40px !important;
-}
+/* ──────────────────────────────────────────────────────────────────
+   MapLibre control re-skin — translucent paper on the dark map so
+   they read as part of the document, not the basemap.
+   ────────────────────────────────────────────────────────────────── */
+.maplibregl-ctrl-bottom-right { bottom: 40px !important; }
 .maplibregl-ctrl-group {
-  background: oklch(0.11 0 0) !important;
-  border: 1px solid oklch(0.20 0 0) !important;
+  background: rgba(247, 244, 238, 0.9) !important;
+  border: 1px solid rgba(205, 196, 174, 0.6) !important;
   border-radius: 6px !important;
   overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
 }
 .maplibregl-ctrl-group button {
   background: transparent !important;
-  color: oklch(0.55 0 0) !important;
+  color: var(--ink-muted) !important;
   width: 28px !important;
   height: 28px !important;
 }
 .maplibregl-ctrl-group button:hover {
-  background: oklch(0.15 0 0) !important;
-  color: oklch(0.85 0 0) !important;
+  background: rgba(31, 29, 24, 0.05) !important;
+  color: var(--ink) !important;
 }
 .maplibregl-ctrl-group button + button {
-  border-top: 1px solid oklch(0.18 0 0) !important;
+  border-top: 1px solid var(--line) !important;
 }
 .maplibregl-ctrl-group .maplibregl-ctrl-icon {
-  filter: invert(0.6);
+  filter: none;
 }
-.maplibregl-ctrl-attrib {
-  display: none;
+.maplibregl-ctrl-attrib { display: none; }
+
+/* ──────────────────────────────────────────────────────────────────
+   Markdown prose — used for streaming reasoning and dossier prose.
+   Tighter than @tailwindcss/typography defaults, scaled for the panel.
+   ────────────────────────────────────────────────────────────────── */
+.prose-canopy {
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.prose-canopy p { margin: 0.45em 0; }
+.prose-canopy p:first-child { margin-top: 0; }
+.prose-canopy p:last-child { margin-bottom: 0; }
+.prose-canopy strong { color: var(--ink); font-weight: 600; }
+.prose-canopy em { color: var(--ink-muted); font-style: italic; }
+.prose-canopy h1, .prose-canopy h2, .prose-canopy h3, .prose-canopy h4 {
+  font-family: var(--font-serif);
+  color: var(--ink);
+  margin: 1em 0 0.4em;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+.prose-canopy h1 { font-size: 18px; font-weight: 600; }
+.prose-canopy h2 { font-size: 16px; font-weight: 600; }
+.prose-canopy h3 { font-size: 14px; font-weight: 600; }
+.prose-canopy h4 {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-muted);
+  margin: 0.8em 0 0.3em;
+}
+.prose-canopy ul, .prose-canopy ol {
+  padding-left: 1.2em;
+  margin: 0.45em 0;
+}
+.prose-canopy ul li { list-style: disc; }
+.prose-canopy ol li { list-style: decimal; }
+.prose-canopy li { margin: 0.2em 0; padding-left: 0.15em; }
+.prose-canopy li::marker { color: var(--ink-faint); }
+.prose-canopy a {
+  color: var(--c-flood);
+  text-decoration: underline;
+  text-decoration-color: var(--c-flood-soft);
+  text-underline-offset: 2px;
+}
+.prose-canopy a:hover { text-decoration-color: var(--c-flood); }
+.prose-canopy code {
+  background: var(--paper-deep);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink);
+}
+.prose-canopy pre {
+  background: var(--paper-deep);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 8px 10px;
+  overflow-x: auto;
+  font-size: 11px;
+  margin: 0.6em 0;
+}
+.prose-canopy pre code { background: transparent; padding: 0; }
+.prose-canopy blockquote {
+  border-left: 3px solid var(--c-evidence);
+  background: var(--c-evidence-soft);
+  padding: 0.4em 0.7em;
+  margin: 0.5em 0;
+  color: var(--c-evidence-deep);
+  font-style: italic;
+}
+.prose-canopy table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.6em 0;
+  font-size: 12px;
+}
+.prose-canopy th, .prose-canopy td {
+  border-bottom: 1px solid var(--line);
+  padding: 5px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+.prose-canopy th {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-muted);
+  background: var(--paper-deep);
+  border-bottom: 1px solid var(--line-strong);
+}
+.prose-canopy hr {
+  border: none;
+  border-top: 1px solid var(--line);
+  margin: 0.8em 0;
 }
 
+/* Lighter prose variant for embedded sections (e.g. in tool result expansions). */
+.prose-canopy-tight p { margin: 0.25em 0; }
+.prose-canopy-tight ul, .prose-canopy-tight ol { margin: 0.25em 0; }
+
+/* ──────────────────────────────────────────────────────────────────
+   Subtle grid paper variant for the agent reasoning panel — adds a
+   "lab notebook" texture that matches the field-journal positioning.
+   ────────────────────────────────────────────────────────────────── */
+.paper-ruled {
+  background-image:
+    linear-gradient(to bottom, rgba(31, 29, 24, 0.04) 1px, transparent 1px);
+  background-size: 100% 22px;
+}

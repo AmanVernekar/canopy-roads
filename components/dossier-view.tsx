@@ -30,40 +30,40 @@ function priorityFromCoverage(
   if (topVuln >= 0.7)
     return {
       label: "Critical priority",
-      color: "text-red-400",
-      bg: "bg-red-400/10 border-red-400/30",
+      color: "text-heat-deep",
+      bg: "bg-heat-soft border-heat/40",
       Icon: TriangleAlert,
     }
   if (coverage >= 60)
     return {
       label: "Fundable now",
-      color: "text-green-400",
-      bg: "bg-green-400/10 border-green-400/30",
+      color: "text-evidence-deep",
+      bg: "bg-evidence-soft border-evidence/40",
       Icon: CheckCircle,
     }
   return {
     label: "Partial fund cover",
-    color: "text-amber-400",
-    bg: "bg-amber-400/10 border-amber-400/30",
+    color: "text-fund-deep",
+    bg: "bg-fund-soft border-fund/40",
     Icon: TriangleAlert,
   }
 }
 
 function evidenceBadge(quality: Intervention["evidence_quality"]) {
   if (quality === "strong")
-    return "bg-green-400/10 border-green-400/30 text-green-400"
+    return "bg-evidence-soft border-evidence/40 text-evidence-deep"
   if (quality === "moderate")
-    return "bg-amber-400/10 border-amber-400/30 text-amber-400"
-  return "bg-zinc-700 border-zinc-600 text-zinc-400"
+    return "bg-fund-soft border-fund/40 text-fund-deep"
+  return "bg-paper-deep border-line-strong text-ink-muted"
 }
 
 function fundStatusBadge(status: Fund["status"]) {
-  if (status === "open") return "bg-green-400/10 text-green-400 border-green-400/30"
+  if (status === "open") return "bg-evidence-soft text-evidence-deep border-evidence/40"
   if (status === "closing_soon")
-    return "bg-amber-400/10 text-amber-400 border-amber-400/30"
+    return "bg-fund-soft text-fund-deep border-fund/40"
   if (status === "scheduled")
-    return "bg-cyan-400/10 text-cyan-400 border-cyan-400/30"
-  return "bg-zinc-700 text-zinc-400 border-zinc-600"
+    return "bg-flood-soft text-flood-deep border-flood/40"
+  return "bg-paper-deep text-ink-muted border-line-strong"
 }
 
 function getInterventionColorForPdf(type: string): [number, number, number] {
@@ -388,18 +388,18 @@ export function DossierView({ dossier, rawMarkdown, areaName }: DossierViewProps
         </div>
         <div className="flex gap-4 text-right">
           <div>
-            <p className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest">
+            <p className="text-[9px] font-mono text-ink-subtle uppercase tracking-widest">
               Total cost
             </p>
-            <p className="text-sm font-mono text-amber-400">
+            <p className="text-sm font-mono text-fund-deep">
               £{dossier.total_cost_gbp.toLocaleString()}
             </p>
           </div>
           <div>
-            <p className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest">
+            <p className="text-[9px] font-mono text-ink-subtle uppercase tracking-widest">
               Fund coverage
             </p>
-            <p className="text-sm font-mono text-cyan-400">
+            <p className="text-sm font-mono text-evidence-deep">
               {Math.round(coverage)}%
             </p>
           </div>
@@ -408,29 +408,29 @@ export function DossierView({ dossier, rawMarkdown, areaName }: DossierViewProps
 
       {/* ── Interventions ── */}
       <div>
-        <p className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+        <p className="text-[9px] font-mono text-ink-subtle uppercase tracking-widest mb-2 flex items-center gap-1.5">
           <Sparkles size={9} /> Interventions ({dossier.interventions.length})
         </p>
         <div className="space-y-2">
           {dossier.interventions.map((iv, i) => (
             <div
               key={i}
-              className="bg-zinc-900/60 border border-zinc-800/60 rounded-md p-2.5 space-y-1.5"
+              className="bg-paper-elevated border border-line rounded-md p-2.5 space-y-1.5"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <p className="text-[12px] font-medium text-zinc-100 leading-tight">
+                  <p className="text-[12px] font-medium text-ink leading-tight">
                     {iv.type.replace(/_/g, " ")}
                   </p>
-                  <p className="text-[10px] font-mono text-zinc-500 mt-0.5">
+                  <p className="text-[10px] font-mono text-ink-muted mt-0.5">
                     {iv.quantity} {iv.unit} · {iv.target_locations.length} sites
                   </p>
                 </div>
-                <span className="text-[11px] font-mono text-amber-400 whitespace-nowrap">
+                <span className="text-[11px] font-mono text-fund-deep whitespace-nowrap">
                   £{iv.indicative_cost_gbp.toLocaleString()}
                 </span>
               </div>
-              <p className="text-[11px] text-zinc-400 leading-relaxed">
+              <p className="text-[11px] text-ink-muted leading-relaxed">
                 {iv.rationale_short}
               </p>
               <div className="flex items-center gap-2 flex-wrap">
@@ -439,7 +439,7 @@ export function DossierView({ dossier, rawMarkdown, areaName }: DossierViewProps
                 >
                   {iv.evidence_quality} evidence
                 </span>
-                <span className="text-[10px] text-zinc-500 italic">
+                <span className="text-[10px] text-ink-muted italic">
                   {iv.evidence_effect_size}
                 </span>
               </div>
@@ -451,15 +451,15 @@ export function DossierView({ dossier, rawMarkdown, areaName }: DossierViewProps
       {/* ── Funds ── */}
       {dossier.funds.length > 0 && (
         <div>
-          <p className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+          <p className="text-[9px] font-mono text-ink-subtle uppercase tracking-widest mb-2 flex items-center gap-1.5">
             <Globe size={9} /> Matched funds ({dossier.funds.length})
             {scrapedFunds.length > 0 && (
-              <span className="text-cyan-400 normal-case font-sans">
+              <span className="text-evidence-deep normal-case font-sans">
                 · {scrapedFunds.length} live-verified
               </span>
             )}
             {fallbackFunds.length > 0 && (
-              <span className="text-zinc-500 normal-case font-sans">
+              <span className="text-ink-muted normal-case font-sans">
                 · {fallbackFunds.length} fallback
               </span>
             )}
@@ -471,15 +471,15 @@ export function DossierView({ dossier, rawMarkdown, areaName }: DossierViewProps
                 href={f.url}
                 target="_blank"
                 rel="noreferrer"
-                className="block bg-zinc-900/60 hover:bg-zinc-900 border border-zinc-800/60 hover:border-cyan-400/40 rounded-md p-2.5 space-y-1.5 transition-colors group"
+                className="block bg-paper-elevated hover:bg-paper-elevated border border-line hover:border-evidence/40 rounded-md p-2.5 space-y-1.5 transition-colors group"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className="text-[12px] font-medium text-zinc-100 leading-tight group-hover:text-cyan-400 transition-colors flex items-center gap-1">
+                    <p className="text-[12px] font-medium text-ink leading-tight group-hover:text-evidence-deep transition-colors flex items-center gap-1">
                       {f.name}
                       <ExternalLink size={9} className="opacity-50" />
                     </p>
-                    <p className="text-[10px] font-mono text-zinc-500 mt-0.5">
+                    <p className="text-[10px] font-mono text-ink-muted mt-0.5">
                       Up to £{f.max_grant_gbp.toLocaleString()}
                       {f.match_required_pct > 0 && ` · ${f.match_required_pct}% match`}
                       {f.deadline && ` · deadline ${f.deadline}`}
@@ -491,21 +491,21 @@ export function DossierView({ dossier, rawMarkdown, areaName }: DossierViewProps
                     {f.status.replace("_", " ")}
                   </span>
                 </div>
-                <p className="text-[11px] text-zinc-400 leading-relaxed">
+                <p className="text-[11px] text-ink-muted leading-relaxed">
                   {f.eligibility_justification}
                 </p>
                 {f.repackaging_note && (
-                  <p className="text-[11px] text-amber-300 leading-relaxed bg-amber-400/5 border-l-2 border-amber-400/40 pl-2 py-1">
-                    <span className="font-mono uppercase text-[8px] tracking-widest text-amber-400 mr-1.5">
+                  <p className="text-[11px] text-fund-deep leading-relaxed bg-fund-soft/40 border-l-2 border-fund/50 pl-2 py-1">
+                    <span className="font-mono uppercase text-[8px] tracking-widest text-fund-deep mr-1.5">
                       Repackage
                     </span>
                     {f.repackaging_note}
                   </p>
                 )}
-                <div className="flex items-center gap-1 text-[9px] font-mono text-zinc-600">
+                <div className="flex items-center gap-1 text-[9px] font-mono text-ink-subtle">
                   {f.verified_via === "scraped" ? (
                     <>
-                      <Globe size={9} className="text-cyan-400/60" />
+                      <Globe size={9} className="text-evidence-deep/60" />
                       <span>scraped via Bright Data</span>
                     </>
                   ) : (
@@ -524,14 +524,14 @@ export function DossierView({ dossier, rawMarkdown, areaName }: DossierViewProps
       {/* ── Trade-offs ── */}
       {dossier.key_trade_offs?.length > 0 && (
         <div>
-          <p className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-2">
+          <p className="text-[9px] font-mono text-ink-subtle uppercase tracking-widest mb-2">
             Key trade-offs
           </p>
           <ul className="space-y-1">
             {dossier.key_trade_offs.map((t, i) => (
               <li
                 key={i}
-                className="text-[11px] text-zinc-400 leading-relaxed pl-3 relative before:content-['—'] before:absolute before:left-0 before:text-zinc-600"
+                className="text-[11px] text-ink-muted leading-relaxed pl-3 relative before:content-['—'] before:absolute before:left-0 before:text-ink-subtle"
               >
                 {t}
               </li>
@@ -544,14 +544,14 @@ export function DossierView({ dossier, rawMarkdown, areaName }: DossierViewProps
       <div className="flex gap-2">
         <button
           onClick={handleDownloadPdf}
-          className="flex-1 flex items-center gap-2 text-[11px] font-mono text-zinc-300 hover:text-cyan-400 bg-cyan-400/10 hover:bg-cyan-400/15 border border-cyan-400/40 hover:border-cyan-400/60 rounded-md px-3 py-2 transition-all justify-center group"
+          className="flex-1 flex items-center gap-2 text-[11px] font-mono text-evidence-deep bg-evidence-soft hover:bg-evidence-soft/80 border border-evidence/40 hover:border-evidence/60 rounded-md px-3 py-2 transition-all justify-center group"
         >
           <FileText size={12} className="group-hover:translate-y-0.5 transition-transform" />
           Download PDF
         </button>
         <button
           onClick={handleDownloadMarkdown}
-          className="flex items-center gap-2 text-[11px] font-mono text-zinc-400 hover:text-zinc-200 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/60 rounded-md px-3 py-2 transition-all justify-center"
+          className="flex items-center gap-2 text-[11px] font-mono text-ink-muted hover:text-ink bg-paper-elevated hover:bg-paper-deep border border-line-strong/70 rounded-md px-3 py-2 transition-all justify-center"
         >
           <Download size={12} />
           .md

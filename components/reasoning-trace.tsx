@@ -16,6 +16,8 @@ import {
   Zap,
 } from "lucide-react"
 import type { UIMessage } from "ai"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 
 interface ReasoningTraceProps {
   messages: UIMessage[]
@@ -205,40 +207,40 @@ function ToolCallCard({ part }: { part: ToolPart }) {
     <motion.div
       initial={{ opacity: 0, x: -4 }}
       animate={{ opacity: 1, x: 0 }}
-      className="border-l-2 border-cyan-400/30 bg-zinc-900/60 rounded-r-md overflow-hidden"
+      className="border-l-2 border-evidence/40 bg-paper-elevated rounded-r-md overflow-hidden"
     >
       <button
         onClick={() => setExpanded((e) => !e)}
-        className="w-full flex items-start gap-2.5 px-3 py-2.5 hover:bg-zinc-800/40 transition-colors text-left"
+        className="w-full flex items-start gap-2.5 px-3 py-2.5 hover:bg-paper-deep transition-colors text-left"
       >
         <div
           className={`flex-shrink-0 w-6 h-6 rounded flex items-center justify-center mt-0.5 ${
-            isComplete ? "bg-cyan-400/15 text-cyan-400" : "bg-zinc-700/60 text-zinc-500"
+            isComplete ? "bg-evidence-soft text-evidence-deep" : "bg-paper-deep text-ink-muted"
           }`}
         >
           <Icon size={12} />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="font-medium text-[12px] text-zinc-200">{meta.label}</span>
+            <span className="font-medium text-[12px] text-ink">{meta.label}</span>
             <span
               className={`text-[8px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded ${
                 isComplete
-                  ? "text-cyan-400/80 bg-cyan-400/10"
-                  : "text-zinc-600 bg-zinc-800 animate-pulse"
+                  ? "text-evidence-deep bg-evidence-soft/70"
+                  : "text-ink-subtle bg-paper-deep animate-pulse"
               }`}
             >
               {isComplete ? "done" : "running"}
             </span>
           </div>
           {meta.sub && (
-            <p className="text-[10px] text-zinc-500 font-mono mt-0.5 truncate">
+            <p className="text-[10px] text-ink-muted font-mono mt-0.5 truncate">
               {meta.sub}
             </p>
           )}
         </div>
         {isComplete && (
-          <span className="text-zinc-600 ml-1 mt-1">
+          <span className="text-ink-subtle ml-1 mt-1">
             {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
           </span>
         )}
@@ -252,23 +254,23 @@ function ToolCallCard({ part }: { part: ToolPart }) {
             exit={{ height: 0 }}
             className="overflow-hidden"
           >
-            <div className="px-3 pb-3 pt-1 space-y-2 border-t border-zinc-800/60">
+            <div className="px-3 pb-3 pt-1 space-y-2 border-t border-line">
               {args != null && (
                 <div>
-                  <p className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-1">
+                  <p className="text-[9px] font-mono text-ink-subtle uppercase tracking-widest mb-1">
                     Input
                   </p>
-                  <pre className="text-[10px] font-mono text-zinc-400 bg-zinc-950/50 rounded p-2 overflow-x-auto whitespace-pre-wrap break-all">
+                  <pre className="text-[10px] font-mono text-ink-muted bg-paper-deep rounded p-2 overflow-x-auto whitespace-pre-wrap break-all">
                     {typeof args === "string" ? args : JSON.stringify(args, null, 2)}
                   </pre>
                 </div>
               )}
               {result != null && (
                 <div>
-                  <p className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-1">
+                  <p className="text-[9px] font-mono text-ink-subtle uppercase tracking-widest mb-1">
                     Result
                   </p>
-                  <pre className="text-[10px] font-mono text-zinc-300 bg-zinc-950/50 rounded p-2 overflow-x-auto whitespace-pre-wrap break-all max-h-48">
+                  <pre className="text-[10px] font-mono text-ink bg-paper-deep rounded p-2 overflow-x-auto whitespace-pre-wrap break-all max-h-48">
                     {typeof result === "string"
                       ? result
                       : JSON.stringify(result, null, 2)}
@@ -288,7 +290,7 @@ function StreamingCursor() {
     <motion.span
       animate={{ opacity: [1, 0] }}
       transition={{ duration: 0.7, repeat: Infinity }}
-      className="inline-block w-[2px] h-[14px] bg-cyan-400 ml-0.5 align-middle"
+      className="inline-block w-[2px] h-[14px] bg-evidence ml-0.5 align-middle"
     />
   )
 }
@@ -340,14 +342,14 @@ function StepBanner({ step, title }: { step: number; title: string }) {
       animate={{ opacity: 1, y: 0 }}
       className="flex items-stretch gap-2 mt-3 mb-1"
     >
-      <div className="flex-shrink-0 flex items-center justify-center w-7 h-7 rounded bg-cyan-400/15 text-cyan-400 font-mono text-[11px] font-semibold border border-cyan-400/30">
+      <div className="flex-shrink-0 flex items-center justify-center w-7 h-7 rounded bg-evidence-soft text-evidence-deep font-mono text-[11px] font-semibold border border-evidence/40">
         {step}
       </div>
-      <div className="flex-1 flex flex-col justify-center border-l border-cyan-400/20 pl-2.5">
-        <p className="text-[9px] font-mono text-cyan-400 uppercase tracking-widest">
+      <div className="flex-1 flex flex-col justify-center border-l border-evidence/30 pl-2.5">
+        <p className="text-[9px] font-mono text-evidence-deep uppercase tracking-widest">
           Step {step}
         </p>
-        <p className="text-[13px] font-semibold text-zinc-100 leading-tight">
+        <p className="text-[13px] font-semibold text-ink leading-tight">
           {title}
         </p>
       </div>
@@ -384,14 +386,12 @@ function TextBlock({
         }
         const isLastSegment = i === segments.length - 1
         return (
-          <p
-            key={`prose-${i}`}
-            className="text-[12px] leading-relaxed text-zinc-300 font-sans whitespace-pre-wrap"
-            suppressHydrationWarning
-          >
-            {seg.text}
+          <div key={`prose-${i}`} className="prose-canopy" suppressHydrationWarning>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {seg.text}
+            </ReactMarkdown>
             {isLast && isLastSegment && isStreaming && <StreamingCursor />}
-          </p>
+          </div>
         )
       })}
     </div>
@@ -409,11 +409,11 @@ export function ReasoningTrace({
     return (
       <div className="flex-1 flex items-center justify-center py-6">
         <div className="text-center space-y-2">
-          <Trees size={20} className="text-zinc-700 mx-auto" />
-          <p className="text-zinc-600 text-xs font-mono">
+          <Trees size={20} className="text-ink-faint mx-auto" />
+          <p className="text-ink-subtle text-xs font-mono">
             Awaiting analysis trigger…
           </p>
-          <p className="text-zinc-700 text-[10px] font-mono">
+          <p className="text-ink-faint text-[10px] font-mono">
             Click an LSOA to start the agent
           </p>
         </div>
@@ -436,10 +436,10 @@ export function ReasoningTrace({
           elements.push(
             <div
               key={key}
-              className="flex items-start gap-2 mt-3 mb-1 pl-2 border-l-2 border-zinc-700"
+              className="flex items-start gap-2 mt-3 mb-1 pl-2 border-l-2 border-line-strong"
             >
-              <p className="text-[11px] text-zinc-500 italic">
-                <span className="text-[9px] font-mono uppercase tracking-widest text-zinc-600 mr-1.5">
+              <p className="text-[11px] text-ink-muted italic">
+                <span className="text-[9px] font-mono uppercase tracking-widest text-ink-subtle mr-1.5">
                   Planner
                 </span>
                 {(part as { text: string }).text}
@@ -498,7 +498,7 @@ function ThinkingIndicator() {
       <motion.span
         animate={{ opacity: [0.3, 1, 0.3] }}
         transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
-        className="text-[12px] font-mono text-cyan-400/80 italic"
+        className="text-[12px] font-mono text-evidence-deep/80 italic"
       >
         Thinking
       </motion.span>
@@ -513,7 +513,7 @@ function ThinkingIndicator() {
               ease: "easeInOut",
               delay: i * 0.18,
             }}
-            className="w-1 h-1 rounded-full bg-cyan-400"
+            className="w-1 h-1 rounded-full bg-evidence"
           />
         ))}
       </div>

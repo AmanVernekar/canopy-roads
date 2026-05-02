@@ -459,11 +459,11 @@ export function LsoaMap({ className }: LsoaMapProps) {
             key="skeleton"
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-zinc-950 flex items-center justify-center z-10"
+            className="absolute inset-0 bg-paper-elevated flex items-center justify-center z-10"
           >
             <div className="flex flex-col items-center gap-3">
-              <div className="w-8 h-8 border-2 border-cyan-400/40 border-t-cyan-400 rounded-full animate-spin" />
-              <span className="text-zinc-500 text-sm font-mono">Loading map tiles…</span>
+              <div className="w-8 h-8 border-2 border-evidence/40 border-t-evidence rounded-full animate-spin" />
+              <span className="text-ink-muted text-sm font-mono">Loading map tiles…</span>
             </div>
           </motion.div>
         )}
@@ -480,7 +480,7 @@ export function LsoaMap({ className }: LsoaMapProps) {
             transition={{ delay: 0.8 }}
             className="pointer-events-none absolute inset-0 flex items-end justify-center pb-20 z-10"
           >
-            <div className="bg-zinc-900/80 backdrop-blur-sm border border-zinc-700/60 rounded-lg px-4 py-2.5 text-sm text-zinc-400">
+            <div className="bg-paper-elevated/95 backdrop-blur-sm border border-line-strong rounded-lg px-4 py-2.5 text-sm text-ink">
               Click any area on the map to begin analysis
             </div>
           </motion.div>
@@ -488,8 +488,8 @@ export function LsoaMap({ className }: LsoaMapProps) {
       </AnimatePresence>
 
       {/* Vulnerability legend */}
-      <div className="absolute bottom-10 left-4 z-10 bg-zinc-900/80 backdrop-blur-sm border border-zinc-800/60 rounded-md px-3 py-2.5">
-        <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-1.5">
+      <div className="absolute bottom-10 left-4 z-10 bg-paper-elevated/90 backdrop-blur-sm border border-line-strong/60 rounded-md px-3 py-2.5">
+        <p className="text-[10px] font-mono text-ink-muted uppercase tracking-widest mb-1.5">
           Heat vulnerability
         </p>
         <div
@@ -500,8 +500,8 @@ export function LsoaMap({ className }: LsoaMapProps) {
           }}
         />
         <div className="flex justify-between mt-1">
-          <span className="text-[9px] font-mono text-zinc-600">Low</span>
-          <span className="text-[9px] font-mono text-zinc-600">High</span>
+          <span className="text-[9px] font-mono text-ink-subtle">Low</span>
+          <span className="text-[9px] font-mono text-ink-subtle">High</span>
         </div>
       </div>
 
@@ -513,9 +513,9 @@ export function LsoaMap({ className }: LsoaMapProps) {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
-            className="absolute top-4 left-4 z-10 bg-zinc-900/85 backdrop-blur-sm border border-zinc-800/60 rounded-md px-3 py-2.5 max-w-[220px]"
+            className="absolute top-4 left-4 z-10 bg-paper-elevated/90 backdrop-blur-sm border border-line-strong/60 rounded-md px-3 py-2.5 max-w-[220px]"
           >
-            <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-2">
+            <p className="text-[10px] font-mono text-ink-muted uppercase tracking-widest mb-2">
               Proposed interventions
             </p>
             <div className="space-y-1.5">
@@ -534,10 +534,10 @@ export function LsoaMap({ className }: LsoaMapProps) {
                       <Icon size={10} className="" style={{ color }} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[11px] text-zinc-200 leading-tight truncate">
+                      <p className="text-[11px] text-ink leading-tight truncate">
                         {iv.type.replace(/_/g, " ")}
                       </p>
-                      <p className="text-[9px] font-mono text-zinc-500">
+                      <p className="text-[9px] font-mono text-ink-muted">
                         {iv.target_locations.length} sites · £{(iv.indicative_cost_gbp / 1000).toFixed(0)}k
                       </p>
                     </div>
@@ -545,7 +545,7 @@ export function LsoaMap({ className }: LsoaMapProps) {
                 )
               })}
             </div>
-            <p className="text-[9px] font-mono text-zinc-600 mt-2 pt-2 border-t border-zinc-800/60">
+            <p className="text-[9px] font-mono text-ink-subtle mt-2 pt-2 border-t border-line">
               Click a marker for cost & impact
             </p>
           </motion.div>
@@ -556,7 +556,7 @@ export function LsoaMap({ className }: LsoaMapProps) {
       <div className="absolute bottom-10 right-12 z-10">
         <button
           onClick={handleResetView}
-          className="bg-zinc-900/80 hover:bg-zinc-800 backdrop-blur-sm border border-zinc-700/60 rounded-md px-2.5 py-1.5 text-[10px] font-mono text-zinc-400 hover:text-zinc-200 transition-colors uppercase tracking-widest"
+          className="bg-paper-elevated/95 hover:bg-paper-elevated backdrop-blur-sm border border-line-strong/70 rounded-md px-2.5 py-1.5 text-[10px] font-mono text-ink-muted hover:text-ink transition-colors uppercase tracking-widest"
         >
           Reset view
         </button>
@@ -577,7 +577,7 @@ export function LsoaMap({ className }: LsoaMapProps) {
               transform: "translate(-50%, -100%)",
             }}
           >
-            <div className="bg-zinc-900 border border-zinc-700/80 rounded-md p-3 w-[280px] shadow-2xl">
+            <div className="bg-paper-elevated border border-line-strong rounded-md p-3 w-[280px] shadow-xl">
               <div className="flex items-start justify-between gap-2 mb-2">
                 <div className="min-w-0 flex-1">
                   <p
@@ -586,66 +586,66 @@ export function LsoaMap({ className }: LsoaMapProps) {
                   >
                     Intervention
                   </p>
-                  <p className="text-sm font-medium text-zinc-100 leading-tight">
+                  <p className="text-sm font-medium text-ink leading-tight">
                     {selectedMarker.intervention.type.replace(/_/g, " ")}
                   </p>
                 </div>
                 <button
                   onClick={() => setSelectedMarker(null)}
-                  className="text-zinc-500 hover:text-zinc-300 flex-shrink-0"
+                  className="text-ink-muted hover:text-ink flex-shrink-0"
                   aria-label="Close"
                 >
                   <X size={14} />
                 </button>
               </div>
 
-              <p className="text-[11px] text-zinc-400 leading-relaxed mb-2.5">
+              <p className="text-[11px] text-ink-muted leading-relaxed mb-2.5">
                 {selectedMarker.intervention.rationale_short}
               </p>
 
               <div className="grid grid-cols-2 gap-2 mb-2.5">
-                <div className="bg-zinc-950/60 rounded p-2">
-                  <p className="text-[8px] font-mono text-zinc-600 uppercase tracking-widest">
+                <div className="bg-paper-deep rounded p-2">
+                  <p className="text-[8px] font-mono text-ink-subtle uppercase tracking-widest">
                     Quantity
                   </p>
-                  <p className="text-[12px] font-mono text-zinc-200">
+                  <p className="text-[12px] font-mono text-ink">
                     {selectedMarker.intervention.quantity}{" "}
-                    <span className="text-zinc-500">{selectedMarker.intervention.unit}</span>
+                    <span className="text-ink-muted">{selectedMarker.intervention.unit}</span>
                   </p>
                 </div>
-                <div className="bg-zinc-950/60 rounded p-2">
-                  <p className="text-[8px] font-mono text-zinc-600 uppercase tracking-widest">
+                <div className="bg-paper-deep rounded p-2">
+                  <p className="text-[8px] font-mono text-ink-subtle uppercase tracking-widest">
                     Indicative cost
                   </p>
-                  <p className="text-[12px] font-mono text-amber-400">
+                  <p className="text-[12px] font-mono text-fund">
                     £{selectedMarker.intervention.indicative_cost_gbp.toLocaleString()}
                   </p>
                 </div>
               </div>
 
-              <div className="bg-zinc-950/60 rounded p-2 mb-2.5">
-                <p className="text-[8px] font-mono text-zinc-600 uppercase tracking-widest mb-0.5">
+              <div className="bg-paper-deep rounded p-2 mb-2.5">
+                <p className="text-[8px] font-mono text-ink-subtle uppercase tracking-widest mb-0.5">
                   Expected impact
                   <span
                     className={`ml-2 px-1.5 py-0.5 rounded border ${
                       selectedMarker.intervention.evidence_quality === "strong"
-                        ? "border-green-400/30 text-green-400 bg-green-400/10"
+                        ? "border-evidence/40 text-evidence-deep bg-evidence-soft"
                         : selectedMarker.intervention.evidence_quality === "moderate"
-                        ? "border-amber-400/30 text-amber-400 bg-amber-400/10"
-                        : "border-zinc-700 text-zinc-500 bg-zinc-800"
+                        ? "border-fund/40 text-fund-deep bg-fund-soft"
+                        : "border-line-strong text-ink-muted bg-paper-deep"
                     }`}
                   >
                     {selectedMarker.intervention.evidence_quality}
                   </span>
                 </p>
-                <p className="text-[11px] text-zinc-300 leading-relaxed mt-1">
+                <p className="text-[11px] text-ink leading-relaxed mt-1">
                   {selectedMarker.intervention.evidence_effect_size}
                 </p>
               </div>
 
               {matchedFunds.length > 0 && (
                 <div>
-                  <p className="text-[8px] font-mono text-zinc-600 uppercase tracking-widest mb-1 flex items-center gap-1">
+                  <p className="text-[8px] font-mono text-ink-subtle uppercase tracking-widest mb-1 flex items-center gap-1">
                     <Banknote size={9} /> Funded by
                   </p>
                   <div className="space-y-1">
@@ -655,7 +655,7 @@ export function LsoaMap({ className }: LsoaMapProps) {
                         href={f.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="block text-[11px] text-cyan-400 hover:text-cyan-300 truncate"
+                        className="block text-[11px] text-flood hover:text-flood-deep truncate underline decoration-flood-soft underline-offset-2"
                       >
                         → {f.name}
                       </a>
@@ -676,7 +676,7 @@ export function LsoaMap({ className }: LsoaMapProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 z-30 bg-zinc-950/70 backdrop-blur-sm flex items-center justify-center p-6"
+            className="absolute inset-0 z-30 bg-ink/40 backdrop-blur-sm flex items-center justify-center p-6"
             onClick={() => setPendingLsoa(null)}
           >
             <motion.div
@@ -684,19 +684,19 @@ export function LsoaMap({ className }: LsoaMapProps) {
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 4, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-zinc-900 border border-zinc-700/80 rounded-md p-5 w-[380px] max-w-full shadow-2xl"
+              className="bg-paper-elevated border border-line-strong rounded-md p-5 w-[380px] max-w-full shadow-2xl"
             >
-              <p className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-2">
+              <p className="text-[9px] font-mono text-ink-muted uppercase tracking-widest mb-2">
                 Move to a different area?
               </p>
-              <p className="text-[13px] text-zinc-200 leading-relaxed mb-1">
+              <p className="text-[13px] text-ink leading-relaxed mb-1">
                 Switch analysis to{" "}
-                <span className="font-medium text-cyan-400">
+                <span className="font-medium text-evidence-deep">
                   {lsoaData[pendingLsoa]?.name ?? pendingLsoa}
                 </span>
                 ?
               </p>
-              <p className="text-[11px] text-zinc-500 leading-relaxed mb-4">
+              <p className="text-[11px] text-ink-muted leading-relaxed mb-4">
                 {isAgentRunning
                   ? "The current analysis is still running and will be discarded."
                   : "The current trace and dossier will be discarded — there's no session memory yet, so this can't be restored."}
@@ -704,7 +704,7 @@ export function LsoaMap({ className }: LsoaMapProps) {
               <div className="flex gap-2 justify-end">
                 <button
                   onClick={() => setPendingLsoa(null)}
-                  className="text-[11px] font-mono text-zinc-400 hover:text-zinc-200 bg-zinc-800 hover:bg-zinc-700 rounded-md px-3 py-1.5 transition-colors"
+                  className="text-[11px] font-mono text-ink-muted hover:text-ink bg-paper-deep hover:bg-paper-edge rounded-md px-3 py-1.5 transition-colors"
                 >
                   Stay here
                 </button>
@@ -716,7 +716,7 @@ export function LsoaMap({ className }: LsoaMapProps) {
                     setSelectedLsoa(code)
                     setSelectedMarker(null)
                   }}
-                  className="text-[11px] font-mono text-cyan-400 bg-cyan-400/15 hover:bg-cyan-400/25 border border-cyan-400/40 rounded-md px-3 py-1.5 transition-colors"
+                  className="text-[11px] font-mono text-evidence-deep bg-evidence-soft hover:bg-evidence-soft/80 border border-evidence/50 rounded-md px-3 py-1.5 transition-colors"
                 >
                   Move to area
                 </button>

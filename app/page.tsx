@@ -12,26 +12,27 @@ export default function Page() {
   useEffect(() => setMounted(true), [])
 
   return (
-    <main className="flex h-screen w-screen overflow-hidden bg-zinc-950 text-zinc-200">
-      {/* ── Left column: 60% ── */}
+    <main className="flex h-screen w-screen overflow-hidden bg-paper text-ink">
+      {/* ── Left column: 60% — map (intentionally dark, sits like an
+          ink illustration on cream paper) ── */}
       <section className="relative flex flex-col" style={{ width: "60%" }}>
-        {/* Header bar */}
-        <header className="flex-shrink-0 flex items-center gap-3 px-5 h-12 border-b border-zinc-800/80 bg-zinc-950/90 backdrop-blur-sm z-20">
+        {/* Header bar — paper-toned, document-like */}
+        <header className="flex-shrink-0 flex items-center gap-3 px-5 h-12 border-b border-line bg-paper-elevated/95 backdrop-blur-sm z-20">
           <div className="flex items-baseline gap-2.5">
             <span
-              className="text-lg font-semibold tracking-tight text-zinc-100"
-              style={{ fontFamily: "var(--font-geist-sans)", letterSpacing: "-0.03em" }}
+              className="text-lg font-semibold tracking-tight text-ink font-serif"
+              style={{ letterSpacing: "-0.01em" }}
             >
               Canopy
             </span>
-            <span className="text-[11px] text-zinc-600 font-mono hidden sm:inline">
-              Urban heat intervention planner
+            <span className="text-[11px] text-ink-subtle font-mono hidden sm:inline">
+              Climate adaptation planner · heat + flood
             </span>
           </div>
           <div className="flex-1" />
           <a
             href="#"
-            className="text-[11px] font-mono text-zinc-600 hover:text-zinc-400 transition-colors"
+            className="text-[11px] font-mono text-ink-subtle hover:text-ink transition-colors"
           >
             About
           </a>
@@ -43,10 +44,10 @@ export default function Page() {
         </div>
       </section>
 
-      {/* ── Right column: 40% ── */}
+      {/* ── Right column: 40% — agent / dossier ── */}
       <section
-        className="flex flex-col border-l border-zinc-800/60 overflow-y-auto shade-scroll"
-        style={{ width: "40%", scrollbarWidth: "thin", scrollbarColor: "#27272a transparent" }}
+        className="flex flex-col border-l border-line overflow-y-auto shade-scroll bg-paper"
+        style={{ width: "40%" }}
       >
         <AgentPanel />
       </section>
