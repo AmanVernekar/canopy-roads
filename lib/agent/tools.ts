@@ -2,6 +2,7 @@ import { tool } from "ai"
 import { z } from "zod"
 import { promises as fs } from "node:fs"
 import path from "node:path"
+import { serverSupabase } from "@/lib/supabase"
 
 // ────────────────────────────────────────────────────────────────────────
 // Loader for the bundled LSOA dataset. Cached for the lifetime of the
@@ -24,12 +25,66 @@ type LsoaRecord = {
 }
 
 let _lsoaCache: Record<string, LsoaRecord> | null = null
+
+// Per-LSOA cache from Supabase (fetched on demand). Avoids loading the entire
+// dataset into memory when only one LSOA is needed per request.
+const _lsoaSingleCache = new Map<string, LsoaRecord>()
+
+async function loadLsoaFromSupabase(code: string): Promise<LsoaRecord | null> {
+  if (
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    !process.env.SUPABASE_SERVICE_ROLE_KEY
+  ) {
+    return null
+  }
+  if (_lsoaSingleCache.has(code)) return _lsoaSingleCache.get(code)!
+  try {
+    const supa = serverSupabase()
+    const { data, error } = await supa
+      .from("lsoas")
+      .select("data")
+      .eq("lsoa_code", code)
+      .maybeSingle()
+    if (error || !data?.data) return null
+    const rec = data.data as LsoaRecord
+    _lsoaSingleCache.set(code, rec)
+    return rec
+  } catch {
+    return null
+  }
+}
+
 async function loadLsoas(): Promise<Record<string, LsoaRecord>> {
   if (_lsoaCache) return _lsoaCache
-  const filePath = path.join(process.cwd(), "public", "data", "lsoas.json")
-  const raw = await fs.readFile(filePath, "utf-8")
-  _lsoaCache = JSON.parse(raw) as Record<string, LsoaRecord>
+  // Read every per-city JSON we have on disk; merge into one map. Supabase is
+  // the canonical source once loaded, but the on-disk files are the fast path
+  // for dev and fallback for any LSOA that didn't make it into the DB yet.
+  const dir = path.join(process.cwd(), "public", "data")
+  const files = await fs.readdir(dir)
+  const merged: Record<string, LsoaRecord> = {}
+  for (const f of files) {
+    if (!/^lsoas(-[a-z]+)?\.json$/.test(f)) continue
+    try {
+      const raw = await fs.readFile(path.join(dir, f), "utf-8")
+      Object.assign(merged, JSON.parse(raw))
+    } catch (e) {
+      console.error(`[loadLsoas] failed to parse ${f}`, e)
+    }
+  }
+  _lsoaCache = merged
   return _lsoaCache
+}
+
+/**
+ * Resolve one LSOA — Supabase first, then bundled JSON fallback.
+ * Used by every tool that takes an lsoa_code. Cheap on hot path because of
+ * per-code memoisation.
+ */
+async function getLsoa(code: string): Promise<LsoaRecord | null> {
+  const fromDb = await loadLsoaFromSupabase(code)
+  if (fromDb) return fromDb
+  const all = await loadLsoas()
+  return all[code] ?? null
 }
 
 let _fundsCache: FundProfile[] | null = null
@@ -106,8 +161,7 @@ export const get_lsoa_context = tool({
     lsoa_code: z.string().describe("LSOA 2021 code, e.g. E01003911"),
   }),
   execute: async ({ lsoa_code }) => {
-    const data = await loadLsoas()
-    const lsoa = data[lsoa_code]
+    const lsoa = await getLsoa(lsoa_code)
     if (!lsoa) return { error: `LSOA ${lsoa_code} not found in dataset` }
 
     const highwayBreakdown: Record<string, number> = {}
@@ -185,8 +239,7 @@ export const query_lsoa_subset = tool({
       .describe("If true, return counts/aggregates only. Set false to retrieve up to 50 items."),
   }),
   execute: async ({ lsoa_code, target, filters, summary_only }) => {
-    const data = await loadLsoas()
-    const lsoa = data[lsoa_code]
+    const lsoa = await getLsoa(lsoa_code)
     if (!lsoa) return { error: `LSOA ${lsoa_code} not found` }
 
     if (target === "streets") {
