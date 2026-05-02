@@ -3,7 +3,7 @@ import { anthropic } from "@ai-sdk/anthropic"
 import { tools } from "@/lib/agent/tools"
 import { systemPrompt } from "@/lib/agent/prompts"
 
-export const maxDuration = 60
+export const maxDuration = 300
 
 export async function POST(req: Request) {
   // Fail loudly if the API key is missing — per context.md, no silent fallbacks.
