@@ -1,0 +1,316 @@
+"""
+Fetch Southwark UHI dataset.
+Run: python fetch-southwark.py
+Output: southwark.json (~5–20MB)
+"""
+
+import json
+import time
+import requests
+import pandas as pd
+import geopandas as gpd
+from pathlib import Path
+from shapely.geometry import shape, mapping
+
+# Southwark = E09000028
+LA_CODE = "E09000028"
+RAW_DIR = Path("./raw")
+RAW_DIR.mkdir(exist_ok=True)
+
+OUT = {}
+
+def log(msg):
+    print(f"[fetch] {msg}", flush=True)
+
+# ────────────────────────────────────────────────────────────────────────
+# 1. LSOA boundaries (ONS Open Geography Portal)
+# ────────────────────────────────────────────────────────────────────────
+log("Fetching LSOA 2021 boundaries for Southwark…")
+
+# ONS ArcGIS REST endpoint. The boundary layer doesn't carry a LAD code field,
+# so we filter by LSOA21NM — Southwark LSOAs are named "Southwark 001A" etc.
+LSOA_URL = (
+    "https://services1.arcgis.com/ESMARspQHYMw9BZ9/arcgis/rest/services/"
+    "LSOA_2021_EW_BSC_V4_RUC/FeatureServer/0/query"
+)
+params = {
+    "where": "LSOA21NM LIKE 'Southwark%'",
+    "outFields": "LSOA21CD,LSOA21NM",
+    "outSR": "4326",
+    "f": "geojson",
+    "resultRecordCount": 2000,
+}
+r = requests.get(LSOA_URL, params=params, timeout=60)
+r.raise_for_status()
+lsoa_gj = r.json()
+log(f"  → {len(lsoa_gj['features'])} LSOAs")
+
+for f in lsoa_gj["features"]:
+    code = f["properties"].get("LSOA21CD") or f["properties"].get("LSOA22CD")
+    name = f["properties"].get("LSOA21NM") or f["properties"].get("LSOA22NM")
+    OUT[code] = {
+        "name": name,
+        "geometry": f["geometry"],
+        "imd_decile": None,
+        "vulnerability_score": None,
+        "canopy_cover_pct": None,
+        "tree_equity_score": None,
+        "building_count": 0,
+        "population": None,
+        "pop_density_per_ha": None,
+        "pct_over_65": None,
+        "pct_under_5": None,
+        "streets": [],
+        "buildings": [],
+    }
+
+# ────────────────────────────────────────────────────────────────────────
+# 2. IMD 2019 deciles
+# ────────────────────────────────────────────────────────────────────────
+log("Fetching IMD 2019…")
+# 2019 IMD is keyed on LSOA 2011 codes — Southwark LSOA 2021 codes are mostly
+# unchanged (a handful re-coded). For the demo this is fine; flag in-app.
+IMD_URL = (
+    "https://assets.publishing.service.gov.uk/government/uploads/system/"
+    "uploads/attachment_data/file/833970/File_1_-_IMD2019_Index_of_Multiple_Deprivation.xlsx"
+)
+imd_path = RAW_DIR / "imd2019.xlsx"
+if not imd_path.exists():
+    r = requests.get(IMD_URL, timeout=120)
+    r.raise_for_status()
+    imd_path.write_bytes(r.content)
+
+imd = pd.read_excel(imd_path, sheet_name="IMD2019")
+imd_col_code = next(c for c in imd.columns if "LSOA code" in c)
+imd_col_decile = next(c for c in imd.columns if "Decile" in c and "IMD" in c)
+
+for _, row in imd.iterrows():
+    code = row[imd_col_code]
+    if code in OUT:
+        OUT[code]["imd_decile"] = int(row[imd_col_decile])
+
+log(f"  → IMD attached")
+
+# ────────────────────────────────────────────────────────────────────────
+# 3. ONS population + age structure (Census 2021)
+# ────────────────────────────────────────────────────────────────────────
+log("Fetching ONS Census 2021 population by LSOA…")
+# NOMIS bulk download — TS007A (age by 5-year bands) for Southwark LSOAs
+# Easier: NOMIS API JSON
+NOMIS_URL = (
+    "https://www.nomisweb.co.uk/api/v01/dataset/NM_2010_1.data.json"
+    f"?date=latest&geography=TYPE151&c2021_age_6=0,1,2,3,4,5&measures=20100"
+    f"&select=geography_code,c2021_age_6_name,obs_value"
+)
+# TYPE151 = LSOA 2021. We'll filter to Southwark codes locally.
+r = requests.get(NOMIS_URL, timeout=120)
+if r.ok:
+    data = r.json()
+    # Build dict: code → {age_band: count}
+    age_map = {}
+    for obs in data.get("obs", []):
+        code = obs["geography"]["geographycode"]
+        if code not in OUT:
+            continue
+        band = obs["c2021_age_6"]["c2021_age_6_name"]
+        age_map.setdefault(code, {})[band] = obs["obs_value"]["value"]
+
+    for code, bands in age_map.items():
+        total = sum(bands.values())
+        OUT[code]["population"] = total
+        # Age 6 bands typically: "Aged 4 years and under", "Aged 5 to 15", "16-24", "25-34", "35-49", "50-64", "65+"
+        # Exact band names vary — match by substring
+        under_5 = sum(v for b, v in bands.items() if "4 years and under" in b or "0 to 4" in b.lower())
+        over_65 = sum(v for b, v in bands.items() if "65" in b)
+        if total > 0:
+            OUT[code]["pct_under_5"] = round(100 * under_5 / total, 1)
+            OUT[code]["pct_over_65"] = round(100 * over_65 / total, 1)
+
+    log(f"  → population attached for {len(age_map)} LSOAs")
+else:
+    log(f"  ⚠ NOMIS failed ({r.status_code}) — population will be null. "
+        "Consider manual download from NOMIS.")
+
+# Compute pop density from polygon area (approx, EPSG:27700 in metres)
+log("Computing population density…")
+gdf = gpd.GeoDataFrame.from_features(lsoa_gj, crs="EPSG:4326").to_crs("EPSG:27700")
+gdf["area_ha"] = gdf.geometry.area / 10000  # m² → ha
+for _, row in gdf.iterrows():
+    code = row.get("LSOA21CD") or row.get("LSOA22CD")
+    if code in OUT and OUT[code]["population"]:
+        OUT[code]["pop_density_per_ha"] = round(OUT[code]["population"] / row["area_ha"], 1)
+
+# ────────────────────────────────────────────────────────────────────────
+# 4. Tree Equity Score
+# ────────────────────────────────────────────────────────────────────────
+log("Fetching Tree Equity Score…")
+# Public API — free, no auth. England endpoint, filter by LSOA codes.
+# As of writing, TES UK serves data per-area with score + canopy_cover %
+# If their schema has shifted, fall back to manually downloaded shapefile
+TES_BASE = "https://api.treeequityscore.org/v1/locality"
+# We don't actually have a per-LSOA endpoint cleanly — TES's primary unit is
+# Census Output Area in UK. Pragmatic shortcut: fetch by Southwark and
+# spatially join to LSOAs. For day-of demo: bulk download their England
+# shapefile once: https://www.treeequityscore.org/download
+# and join locally.
+
+tes_path = RAW_DIR / "tes_england.geojson"
+if not tes_path.exists():
+    log("  ⚠ Tree Equity Score data not pre-downloaded. "
+        "Manual step: download the England shapefile from "
+        "https://www.treeequityscore.org/download into ./raw/tes_england.geojson")
+    log("  Continuing with canopy_cover_pct=None for now.")
+else:
+    tes_gdf = gpd.read_file(tes_path).to_crs("EPSG:4326")
+    lsoa_gdf = gpd.GeoDataFrame.from_features(lsoa_gj, crs="EPSG:4326")
+    # Spatial join: TES polygons → LSOA they fall in (centroid-based)
+    tes_gdf["centroid"] = tes_gdf.geometry.centroid
+    tes_pts = tes_gdf.set_geometry("centroid")
+    joined = gpd.sjoin(tes_pts, lsoa_gdf, predicate="within", how="left")
+    # Aggregate to LSOA: mean canopy %, mean TES score
+    canopy_col = next((c for c in joined.columns if "canopy" in c.lower()), None)
+    score_col  = next((c for c in joined.columns if c.lower() in ("score", "tes_score", "tree_equity")), None)
+    code_col   = next((c for c in joined.columns if c in ("LSOA21CD", "LSOA22CD")), None)
+
+    if canopy_col and code_col:
+        agg = joined.groupby(code_col).agg(
+            canopy=(canopy_col, "mean"),
+            score=(score_col, "mean") if score_col else (canopy_col, "mean"),
+        )
+        for code, row in agg.iterrows():
+            if code in OUT:
+                OUT[code]["canopy_cover_pct"] = round(row["canopy"], 1)
+                OUT[code]["tree_equity_score"] = round(row["score"], 1)
+        log(f"  → canopy attached")
+    else:
+        log("  ⚠ TES schema mismatch — inspect raw file")
+
+# ────────────────────────────────────────────────────────────────────────
+# 5. OSM streets and buildings via Overpass
+# ────────────────────────────────────────────────────────────────────────
+log("Fetching OSM streets and buildings (this is the slow part)…")
+
+# Bbox for Southwark, generous: roughly 51.42–51.51 N, -0.12 to -0.02 W
+OVERPASS = "https://overpass-api.de/api/interpreter"
+
+# Streets: highways, exclude motorways/footways/service
+streets_query = """
+[out:json][timeout:120];
+area["wikidata"="Q207614"]->.southwark;
+(
+  way["highway"~"^(primary|secondary|tertiary|residential|unclassified|living_street)$"](area.southwark);
+);
+out geom;
+"""
+r = requests.post(OVERPASS, data={"data": streets_query}, timeout=180)
+r.raise_for_status()
+streets_data = r.json()
+log(f"  → {len(streets_data['elements'])} street ways")
+
+# Buildings
+buildings_query = """
+[out:json][timeout:180];
+area["wikidata"="Q207614"]->.southwark;
+(
+  way["building"](area.southwark);
+);
+out geom;
+"""
+r = requests.post(OVERPASS, data={"data": buildings_query}, timeout=300)
+r.raise_for_status()
+buildings_data = r.json()
+log(f"  → {len(buildings_data['elements'])} buildings")
+
+# Spatial bin to LSOAs
+from shapely.geometry import Polygon, LineString, Point
+
+lsoa_polys = {}
+for f in lsoa_gj["features"]:
+    code = f["properties"].get("LSOA21CD") or f["properties"].get("LSOA22CD")
+    lsoa_polys[code] = shape(f["geometry"])
+
+def find_lsoa(point):
+    for code, poly in lsoa_polys.items():
+        if poly.contains(point):
+            return code
+    return None
+
+log("Binning streets to LSOAs…")
+for el in streets_data["elements"]:
+    if "geometry" not in el or len(el["geometry"]) < 2:
+        continue
+    coords = [(p["lon"], p["lat"]) for p in el["geometry"]]
+    centroid = LineString(coords).centroid
+    code = find_lsoa(centroid)
+    if code and code in OUT:
+        OUT[code]["streets"].append({
+            "id": el["id"],
+            "name": el.get("tags", {}).get("name"),
+            "highway": el.get("tags", {}).get("highway"),
+            "coords": coords,
+        })
+
+log("Binning buildings to LSOAs…")
+for el in buildings_data["elements"]:
+    if "geometry" not in el or len(el["geometry"]) < 3:
+        continue
+    coords = [(p["lon"], p["lat"]) for p in el["geometry"]]
+    if coords[0] != coords[-1]:
+        coords.append(coords[0])
+    try:
+        poly = Polygon(coords)
+        if not poly.is_valid:
+            continue
+        code = find_lsoa(poly.centroid)
+        if code and code in OUT:
+            OUT[code]["buildings"].append({
+                "id": el["id"],
+                "coords": coords,
+            })
+            OUT[code]["building_count"] += 1
+    except Exception:
+        continue
+
+# ────────────────────────────────────────────────────────────────────────
+# 6. Compute composite vulnerability score
+# ────────────────────────────────────────────────────────────────────────
+# Proxy: weighted combination of (1) IMD inverse decile, (2) age vulnerability
+# (over-65 + under-5), (3) low canopy, (4) high density.
+# All normalised 0–1, weights chosen to be defensible not optimal.
+log("Computing composite vulnerability score…")
+
+def safe_minmax(values):
+    vals = [v for v in values if v is not None]
+    if not vals:
+        return lambda x: 0
+    lo, hi = min(vals), max(vals)
+    if hi == lo:
+        return lambda x: 0.5
+    return lambda x: (x - lo) / (hi - lo) if x is not None else 0
+
+imd_norm    = safe_minmax([(11 - v["imd_decile"]) for v in OUT.values() if v["imd_decile"]])
+age_norm    = safe_minmax([(v.get("pct_over_65") or 0) + (v.get("pct_under_5") or 0) for v in OUT.values()])
+canopy_norm = safe_minmax([v.get("canopy_cover_pct") for v in OUT.values()])
+dens_norm   = safe_minmax([v.get("pop_density_per_ha") for v in OUT.values()])
+
+for code, v in OUT.items():
+    imd_score    = imd_norm(11 - v["imd_decile"]) if v["imd_decile"] else 0
+    age_score    = age_norm((v.get("pct_over_65") or 0) + (v.get("pct_under_5") or 0))
+    canopy_score = 1 - canopy_norm(v.get("canopy_cover_pct"))   # low canopy = high vulnerability
+    dens_score   = dens_norm(v.get("pop_density_per_ha"))
+    v["vulnerability_score"] = round(
+        0.35 * imd_score + 0.25 * age_score + 0.25 * canopy_score + 0.15 * dens_score, 3
+    )
+
+# ────────────────────────────────────────────────────────────────────────
+# 7. Write
+# ────────────────────────────────────────────────────────────────────────
+out_path = Path("southwark.json")
+with out_path.open("w") as f:
+    json.dump(OUT, f, separators=(",", ":"))
+
+size_mb = out_path.stat().st_size / 1024 / 1024
+log(f"\n✓ Wrote {out_path} ({size_mb:.1f} MB) covering {len(OUT)} LSOAs")
+log(f"  Sample LSOA: {next(iter(OUT))} → "
+    f"{OUT[next(iter(OUT))]['name']}, "
+    f"vuln={OUT[next(iter(OUT))]['vulnerability_score']}")
