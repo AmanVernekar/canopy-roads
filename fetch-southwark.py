@@ -141,49 +141,41 @@ for _, row in gdf.iterrows():
         OUT[code]["pop_density_per_ha"] = round(OUT[code]["population"] / row["area_ha"], 1)
 
 # ────────────────────────────────────────────────────────────────────────
-# 4. Tree Equity Score
+# 4. Tree Equity Score UK (American Forests + Woodland Trust)
 # ────────────────────────────────────────────────────────────────────────
-log("Fetching Tree Equity Score…")
-# Public API — free, no auth. England endpoint, filter by LSOA codes.
-# As of writing, TES UK serves data per-area with score + canopy_cover %
-# If their schema has shifted, fall back to manually downloaded shapefile
-TES_BASE = "https://api.treeequityscore.org/v1/locality"
-# We don't actually have a per-LSOA endpoint cleanly — TES's primary unit is
-# Census Output Area in UK. Pragmatic shortcut: fetch by Southwark and
-# spatially join to LSOAs. For day-of demo: bulk download their England
-# shapefile once: https://www.treeequityscore.org/download
-# and join locally.
+# Per-LSOA in England, keyed on LSOA21CD via the `bge_code` field. Single
+# England-wide CSV (~4 MB), filter on la_code = E09000028 for Southwark.
+log("Fetching Tree Equity Score UK…")
+import zipfile
+import io
 
-tes_path = RAW_DIR / "tes_england.geojson"
-if not tes_path.exists():
-    log("  ⚠ Tree Equity Score data not pre-downloaded. "
-        "Manual step: download the England shapefile from "
-        "https://www.treeequityscore.org/download into ./raw/tes_england.geojson")
-    log("  Continuing with canopy_cover_pct=None for now.")
-else:
-    tes_gdf = gpd.read_file(tes_path).to_crs("EPSG:4326")
-    lsoa_gdf = gpd.GeoDataFrame.from_features(lsoa_gj, crs="EPSG:4326")
-    # Spatial join: TES polygons → LSOA they fall in (centroid-based)
-    tes_gdf["centroid"] = tes_gdf.geometry.centroid
-    tes_pts = tes_gdf.set_geometry("centroid")
-    joined = gpd.sjoin(tes_pts, lsoa_gdf, predicate="within", how="left")
-    # Aggregate to LSOA: mean canopy %, mean TES score
-    canopy_col = next((c for c in joined.columns if "canopy" in c.lower()), None)
-    score_col  = next((c for c in joined.columns if c.lower() in ("score", "tes_score", "tree_equity")), None)
-    code_col   = next((c for c in joined.columns if c in ("LSOA21CD", "LSOA22CD")), None)
+TES_UK_URL = "https://tes-uk-app-data-share.s3.amazonaws.com/england/england_csv.zip"
+tes_csv_path = RAW_DIR / "england_tes.csv"
+if not tes_csv_path.exists():
+    r = requests.get(TES_UK_URL, timeout=120)
+    r.raise_for_status()
+    with zipfile.ZipFile(io.BytesIO(r.content)) as zf:
+        # archive contains a single CSV — extract whichever .csv is in there
+        csv_name = next(n for n in zf.namelist() if n.lower().endswith(".csv"))
+        tes_csv_path.write_bytes(zf.read(csv_name))
 
-    if canopy_col and code_col:
-        agg = joined.groupby(code_col).agg(
-            canopy=(canopy_col, "mean"),
-            score=(score_col, "mean") if score_col else (canopy_col, "mean"),
-        )
-        for code, row in agg.iterrows():
-            if code in OUT:
-                OUT[code]["canopy_cover_pct"] = round(row["canopy"], 1)
-                OUT[code]["tree_equity_score"] = round(row["score"], 1)
-        log(f"  → canopy attached")
-    else:
-        log("  ⚠ TES schema mismatch — inspect raw file")
+tes_df = pd.read_csv(tes_csv_path, low_memory=False)
+southwark_tes = tes_df[tes_df["la_code"] == LA_CODE]
+log(f"  → {len(southwark_tes)} TES UK rows for Southwark")
+
+attached = 0
+for _, row in southwark_tes.iterrows():
+    code = row["bge_code"]
+    if code not in OUT:
+        continue
+    canopy = row.get("treecanopy")
+    score = row.get("tes")
+    if pd.notna(canopy):
+        OUT[code]["canopy_cover_pct"] = round(float(canopy) * 100, 1)
+    if pd.notna(score):
+        OUT[code]["tree_equity_score"] = round(float(score), 1)
+    attached += 1
+log(f"  → canopy + TES attached to {attached} LSOAs")
 
 # ────────────────────────────────────────────────────────────────────────
 # 5. OSM streets and buildings via Overpass
