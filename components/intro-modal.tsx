@@ -80,53 +80,49 @@ export function IntroModal({ openOverride, onClose }: { openOverride?: boolean; 
 
               <div className="space-y-3 text-[13px] leading-relaxed text-ink">
                 <p>
-                  Click any neighbourhood (LSOA) on the map. An agent then reads
-                  the place, forms hypotheses, browses an intervention catalogue,
-                  pulls peer-reviewed evidence, scrapes live UK funding pages,
-                  and produces a <strong>grant-ready dossier</strong> — costed,
-                  evidence-cited, and mapped to specific streets.
+                  Click any neighbourhood on the map. Canopy will produce a
+                  costed, evidence-cited intervention package, mapped to
+                  specific streets and matched to currently-open UK funding —
+                  ready to send to a grants team.
                 </p>
                 <div className="grid grid-cols-2 gap-3 pt-1">
                   <Card icon={Trees} colour="text-evidence-deep" bg="bg-evidence-soft" title="Heat + flood">
-                    The agent considers both axes together — many UK interventions (trees, raingardens, depave) help with both.
+                    Both vulnerability axes considered together — interventions like trees, raingardens, and depaving address both.
                   </Card>
-                  <Card icon={Droplets} colour="text-flood-deep" bg="bg-flood-soft" title="Real coordinates">
-                    Markers are placed on actual streets inside the polygon — pulled from OSM data, not invented.
+                  <Card icon={Droplets} colour="text-flood-deep" bg="bg-flood-soft" title="Mapped to streets">
+                    Each intervention is placed on actual streets inside the neighbourhood polygon.
                   </Card>
-                  <Card icon={Search} colour="text-fund-deep" bg="bg-fund-soft" title="Live funding scrape">
-                    Bright Data Web Unlocker checks current UK funding pages — and the agent will tell you when a grant is unrealistic, not just whether you're "eligible".
+                  <Card icon={Search} colour="text-fund-deep" bg="bg-fund-soft" title="Live funding">
+                    Current UK funding pages are checked in real time — with realistic award probabilities, not just eligibility flags.
                   </Card>
-                  <Card icon={FileText} colour="text-heat-deep" bg="bg-heat-soft" title="Honest dossier">
-                    You'll see a realistic coverage % alongside the optimistic one. Plus an equity audit. Plus dropped candidates with reasons.
+                  <Card icon={FileText} colour="text-heat-deep" bg="bg-heat-soft" title="Grant-ready dossier">
+                    Markdown + PDF export with map, costs, fund matches, equity audit, and key trade-offs.
                   </Card>
                 </div>
               </div>
 
               <div className="bg-paper-deep border border-line rounded-md p-3 space-y-2">
                 <p className="text-[10px] font-mono text-ink-subtle uppercase tracking-widest">
-                  What to expect
+                  How to use it
                 </p>
                 <ul className="text-[12px] text-ink-muted leading-relaxed space-y-1">
                   <li>
-                    <strong className="text-ink">~60–120 seconds.</strong> The
-                    agent calls multiple tools — you'll see each step stream in
-                    the right panel.
+                    <strong className="text-ink">Pick a city</strong> from the
+                    dropdown, then click any LSOA polygon on the heatmap.
                   </li>
                   <li>
-                    <strong className="text-ink">It thinks out loud.</strong>{" "}
-                    "Considered and dropped" candidates are intentional — proof
-                    of decision-making, not noise.
+                    <strong className="text-ink">Watch it work</strong> — each
+                    step streams to the right panel; intervention candidates
+                    appear in the left column as they're proposed.
                   </li>
                   <li>
-                    <strong className="text-ink">It hits real APIs.</strong>{" "}
-                    OpenAlex (evidence), Bright Data (funding pages), the open
-                    web. Sometimes scrapes fail — the agent disclosures fallback
-                    use.
+                    <strong className="text-ink">Ask follow-ups</strong> once
+                    the dossier is ready — "halve the budget", "what changes
+                    with cool roofs?" — and it revises.
                   </li>
                   <li>
-                    <strong className="text-ink">You can ask follow-ups.</strong>{" "}
-                    Once the dossier is in, type a question — "halve the
-                    budget", "swap shade for cool roofs" — and it revises.
+                    <strong className="text-ink">Download the PDF</strong> when
+                    you're done.
                   </li>
                 </ul>
               </div>

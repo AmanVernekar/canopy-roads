@@ -8,6 +8,7 @@ import { AgentPanel } from "@/components/agent-panel"
 // client-side mount because maplibre touches window.
 import { LsoaMap } from "@/components/lsoa-map"
 import { IntroModal } from "@/components/intro-modal"
+import { LeftSidebar } from "@/components/left-sidebar"
 import { useCanopyStore, CITIES, type CitySlug } from "@/lib/store"
 
 export default function Page() {
@@ -19,9 +20,21 @@ export default function Page() {
 
   return (
     <main className="flex h-screen w-screen overflow-hidden bg-paper text-ink">
-      {/* ── Left column: 60% — map (intentionally dark, sits like an
-          ink illustration on cream paper) ── */}
-      <section className="relative flex flex-col" style={{ width: "60%" }}>
+      {/* ── Left strip: ~22% — saved analyses + live interventions banner ── */}
+      <aside style={{ width: "22%" }} className="flex flex-col h-full">
+        {/* Spacer to align with map header */}
+        <div className="flex-shrink-0 h-12 border-b border-line bg-paper-elevated/95 flex items-center px-4">
+          <span className="text-[10px] font-mono text-ink-subtle uppercase tracking-widest">
+            Context
+          </span>
+        </div>
+        <div className="flex-1 min-h-0">
+          <LeftSidebar />
+        </div>
+      </aside>
+
+      {/* ── Centre column: ~48% — map ── */}
+      <section className="relative flex flex-col" style={{ width: "48%" }}>
         {/* Header bar — paper-toned, document-like */}
         <header className="flex-shrink-0 flex items-center gap-3 px-5 h-12 border-b border-line bg-paper-elevated/95 backdrop-blur-sm z-20">
           <div className="flex items-baseline gap-2.5">
@@ -69,10 +82,10 @@ export default function Page() {
         </div>
       </section>
 
-      {/* ── Right column: 40% — agent / dossier ── */}
+      {/* ── Right column: ~30% — agent / dossier ── */}
       <section
         className="flex flex-col border-l border-line overflow-y-auto shade-scroll bg-paper"
-        style={{ width: "40%" }}
+        style={{ width: "30%" }}
       >
         <AgentPanel />
       </section>

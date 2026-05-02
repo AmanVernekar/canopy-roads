@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import type { Map as MapLibreMap } from "maplibre-gl"
+import type { UIMessage } from "ai"
 
 export interface LsoaFeature {
   name: string
@@ -117,6 +118,10 @@ interface CanopyStore {
   // turn after the planner's first answer. Off by default (extra tokens).
   criticEnabled: boolean
   setCriticEnabled: (v: boolean) => void
+  // Mirrored from useChat so the LeftSidebar can render the live
+  // interventions banner without owning its own chat hook.
+  liveMessages: UIMessage[]
+  setLiveMessages: (m: UIMessage[]) => void
   resetAgent: () => void
 }
 
@@ -144,11 +149,14 @@ export const useCanopyStore = create<CanopyStore>((set) => ({
   setMapInstance: (m) => set({ mapInstance: m }),
   criticEnabled: false,
   setCriticEnabled: (v) => set({ criticEnabled: v }),
+  liveMessages: [],
+  setLiveMessages: (m) => set({ liveMessages: m }),
   resetAgent: () =>
     set({
       isAgentRunning: false,
       agentMessages: [],
       parsedDossier: null,
       streamingText: "",
+      liveMessages: [],
     }),
 }))

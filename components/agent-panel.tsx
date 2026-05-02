@@ -20,7 +20,6 @@ import { useCanopyStore } from "@/lib/store"
 import type { ParsedDossier } from "@/lib/store"
 import { ReasoningTrace } from "@/components/reasoning-trace"
 import { DossierView } from "@/components/dossier-view"
-import { InterventionsBanner } from "@/components/interventions-banner"
 import { InfoTooltip, TERM_DEFINITIONS } from "@/components/info-tooltip"
 import { resolveAreaName } from "@/lib/area-name"
 import { getSessionId } from "@/lib/session"
@@ -87,6 +86,7 @@ export function AgentPanel() {
   const setSelectedAreaName = useCanopyStore((s) => s.setSelectedAreaName)
   const criticEnabled = useCanopyStore((s) => s.criticEnabled)
   const setCriticEnabled = useCanopyStore((s) => s.setCriticEnabled)
+  const setLiveMessages = useCanopyStore((s) => s.setLiveMessages)
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const prevSelectedRef = useRef<string | null>(null)
@@ -189,6 +189,12 @@ export function AgentPanel() {
   useEffect(() => {
     setStreamingText(fullText)
   }, [fullText, setStreamingText])
+
+  // Mirror messages into the store so the LeftSidebar can render the live
+  // interventions banner without owning its own chat hook.
+  useEffect(() => {
+    setLiveMessages(messages)
+  }, [messages, setLiveMessages])
 
   // Parse / re-parse dossier whenever a turn completes (so follow-ups can
   // emit an updated JSON block and refresh the map).
@@ -328,13 +334,6 @@ export function AgentPanel() {
           )}
         </AnimatePresence>
       </div>
-
-      {/* ─── Live interventions banner — fed by propose_intervention tool ─── */}
-      {messages.length > 0 && (
-        <div className="flex-shrink-0 px-4 pt-3">
-          <InterventionsBanner messages={messages} />
-        </div>
-      )}
 
       {/* ─── Agent reasoning ─── */}
       <div className="flex-shrink-0 flex items-center gap-2 px-4 pt-4 pb-2">
