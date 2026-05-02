@@ -1,15 +1,16 @@
 "use client"
 
-import dynamic from "next/dynamic"
+import { useEffect, useState } from "react"
 import { AgentPanel } from "@/components/agent-panel"
-
-// MapLibre requires browser APIs — load client-only
-const LsoaMap = dynamic(
-  () => import("@/components/lsoa-map").then((m) => m.LsoaMap),
-  { ssr: false }
-)
+// Static import keeps lib/store in a single bundle, so AgentPanel and LsoaMap
+// share the same Zustand instance. We delay actually rendering LsoaMap until
+// client-side mount because maplibre touches window.
+import { LsoaMap } from "@/components/lsoa-map"
 
 export default function Page() {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+
   return (
     <main className="flex h-screen w-screen overflow-hidden bg-zinc-950 text-zinc-200">
       {/* ── Left column: 60% ── */}
@@ -38,7 +39,7 @@ export default function Page() {
 
         {/* Map fills remaining height */}
         <div className="flex-1 relative">
-          <LsoaMap />
+          {mounted && <LsoaMap />}
         </div>
       </section>
 
