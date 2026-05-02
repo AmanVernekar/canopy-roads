@@ -283,6 +283,58 @@ export function AgentPanel() {
   const isStreamingFollowup = isAgentRunning && followupMessages.length > 0
   const isStreamingInitial = isAgentRunning && !isStreamingFollowup
 
+  // Post-stream "finalising" phase. The visible work after the agent's text
+  // stream finishes — JSON parsing, map marker placement, save — takes 1–3
+  // seconds, during which the trace is silent. Without an explicit indicator
+  // users assume the run died. We hold the label active for ~2.5s after the
+  // dossier first appears, then release.
+  const [finalisingPhase, setFinalisingPhase] = useState<
+    "parsing" | "placing" | null
+  >(null)
+  const prevStatusForFinalRef = useRef<string>("idle")
+  const dossierJustAppearedRef = useRef<boolean>(false)
+  // 1) When status flips streaming→ready: enter "parsing" until parsedDossier
+  //    is set or 6s elapses (in case the JSON didn't parse).
+  useEffect(() => {
+    const prev = prevStatusForFinalRef.current
+    prevStatusForFinalRef.current = status
+    const justFinishedStreaming =
+      (prev === "streaming" || prev === "submitted") && status === "ready"
+    if (!justFinishedStreaming) return
+    if (parsedDossier) {
+      // Dossier was already parsed by the streaming-text watcher — go straight
+      // to "placing".
+      setFinalisingPhase("placing")
+      return
+    }
+    setFinalisingPhase("parsing")
+    const t = setTimeout(() => setFinalisingPhase(null), 6000)
+    return () => clearTimeout(t)
+  }, [status, parsedDossier])
+  // 2) When the dossier first appears AFTER streaming has ended, switch to
+  //    "placing" briefly so the user knows the map is being updated.
+  useEffect(() => {
+    if (!parsedDossier) {
+      dossierJustAppearedRef.current = false
+      return
+    }
+    if (dossierJustAppearedRef.current) return
+    dossierJustAppearedRef.current = true
+    if (status !== "streaming" && status !== "submitted") {
+      setFinalisingPhase("placing")
+      const t = setTimeout(() => setFinalisingPhase(null), 2500)
+      return () => clearTimeout(t)
+    }
+  }, [parsedDossier, status])
+
+  const initialThinkingLabel = isStreamingInitial
+    ? "Thinking"
+    : finalisingPhase === "parsing"
+    ? "Finalising dossier"
+    : finalisingPhase === "placing"
+    ? "Placing markers on the map"
+    : "Thinking"
+
   return (
     <div className="h-full flex flex-col gap-0 overflow-hidden">
       {/* ─── Selected area card ─── */}
@@ -444,6 +496,8 @@ export function AgentPanel() {
           messages={initialMessages}
           isStreaming={isStreamingInitial}
           streamingText={streamingText}
+          thinkingLabel={initialThinkingLabel}
+          forceShowThinking={!isStreamingInitial && finalisingPhase != null}
         />
 
         {/* ── Dossier panel sits between the initial run and any follow-ups ── */}

@@ -27,6 +27,13 @@ interface ReasoningTraceProps {
   // suppressed. Used by the follow-up trace section that lives below the
   // dossier — it should be invisible until the user actually asks something.
   hideEmptyState?: boolean
+  // Custom label to show in the Thinking indicator. Lets the parent surface
+  // post-stream phases ("Finalising dossier", "Placing markers on the map…")
+  // with the same animated dots so users always know something's happening.
+  thinkingLabel?: string
+  // Force the indicator on even when the agent isn't streaming. Used during
+  // the brief parse + marker-placement window after stream completion.
+  forceShowThinking?: boolean
 }
 
 // Map our tools to friendly labels and icons. The subtitle is computed from
@@ -441,6 +448,8 @@ export function ReasoningTrace({
   isStreaming,
   streamingText,
   hideEmptyState = false,
+  thinkingLabel = "Thinking",
+  forceShowThinking = false,
 }: ReasoningTraceProps) {
   if (messages.length === 0 && !isStreaming) {
     if (hideEmptyState) return null
@@ -503,12 +512,12 @@ export function ReasoningTrace({
     })
   })
 
-  // Always show the "Thinking…" indicator while the agent is mid-flight.
-  // Earlier we hid it during text streaming, but the long Step 8 dossier
-  // emission (with the JSON block) made the UI look stalled — users couldn't
-  // tell if the agent was working or hung. Keeping it visible throughout
-  // makes the live state unambiguous.
-  const showThinking = isStreaming
+  // Always show the "Thinking…" indicator while the agent is mid-flight, and
+  // ALSO during the post-stream finalising phase (parent passes
+  // forceShowThinking=true while it parses the JSON dossier and the map
+  // animates marker placement). Without this, users see a long silent gap
+  // and assume the run died.
+  const showThinking = isStreaming || forceShowThinking
 
   return (
     <div className="space-y-2 text-[12px]">
@@ -516,12 +525,12 @@ export function ReasoningTrace({
       {messages.length === 0 && streamingText && (
         <TextBlock text={streamingText} isLast isStreaming={isStreaming} />
       )}
-      {showThinking && <ThinkingIndicator />}
+      {showThinking && <ThinkingIndicator label={thinkingLabel} />}
     </div>
   )
 }
 
-function ThinkingIndicator() {
+function ThinkingIndicator({ label }: { label: string }) {
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -529,11 +538,12 @@ function ThinkingIndicator() {
       className="flex items-center gap-2 py-1.5 pl-1"
     >
       <motion.span
+        key={label}
         animate={{ opacity: [0.3, 1, 0.3] }}
         transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
         className="text-[12px] font-mono text-evidence-deep/80 italic"
       >
-        Thinking
+        {label}
       </motion.span>
       <div className="flex gap-0.5">
         {[0, 1, 2].map((i) => (
