@@ -19,16 +19,25 @@ export interface InterventionLocation {
   lng: number
 }
 
-// Matches the JSON schema in context.md exactly.
+// Matches the JSON schema in lib/agent/prompts.ts. New fields are optional so
+// dossiers from prior agent runs (older schema) still parse.
+export type ClimateAxis = "heat" | "flood"
+
 export interface Intervention {
+  id?: string
   type: string
+  axes_addressed?: ClimateAxis[]
   quantity: number
-  unit: "trees" | "m²" | "structures" | "roofs" | string
+  unit: "trees" | "m²" | "structures" | "roofs" | "raingardens" | "linear_m" | string
   rationale_short: string
   target_locations: InterventionLocation[]
   indicative_cost_gbp: number
+  annual_maintenance_gbp?: number
+  lifecycle_years?: number
   evidence_effect_size: string
   evidence_quality: "strong" | "moderate" | "weak"
+  co_benefits?: string[]
+  equity_note?: string
 }
 
 export interface Fund {
@@ -38,18 +47,35 @@ export interface Fund {
   deadline: string | null
   max_grant_gbp: number
   match_required_pct: number
+  match_secured_pct?: number
+  award_probability?: number
   covered_interventions: string[]
+  covered_axes?: ClimateAxis[]
   eligibility_justification: string
+  weaknesses?: string[]
   repackaging_note?: string
   url: string
 }
 
+export interface VulnerabilitySummary {
+  heat_score?: number
+  flood_score?: number
+  headline?: string
+}
+
 export interface ParsedDossier {
   lsoa_code: string
+  place_archetype?: string
+  vulnerability_summary?: VulnerabilitySummary
   interventions: Intervention[]
   funds: Fund[]
   total_cost_gbp: number
-  fund_coverage_pct: number
+  total_annual_maintenance_gbp?: number
+  /** Legacy field — kept so older parsed dossiers still surface a coverage number. */
+  fund_coverage_pct?: number
+  optimistic_coverage_pct?: number
+  realistic_coverage_pct?: number
+  equity_audit?: string
   key_trade_offs: string[]
 }
 

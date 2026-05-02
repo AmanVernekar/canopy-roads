@@ -137,6 +137,35 @@ const TOOL_META: Record<string, ToolMeta> = {
         : null
     },
   },
+  intervention_catalogue: {
+    label: "Browsing intervention menu",
+    icon: BookOpen,
+    defaultSub: "trees · roofs · paving · SuDS · shade · depave",
+    describe: (args) => {
+      const a = asString(args?.archetype_filter)
+      return a ? `filtered for ${a}` : null
+    },
+  },
+  propose_intervention: {
+    label: "Logging intervention",
+    icon: Zap,
+    defaultSub: "considered / accepted / dropped",
+    describe: (args) => {
+      const name = asString(args?.name)
+      const status = asString(args?.status)
+      if (!name) return null
+      return status ? `${status}: ${name}` : name
+    },
+  },
+  critique_funding_match: {
+    label: "Critiquing fund match",
+    icon: Banknote,
+    defaultSub: "award probability · match gap · timing · politics",
+    describe: (args) => {
+      const f = asString(args?.fund_name)
+      return f ? `stress-test ${f}` : null
+    },
+  },
 }
 
 function getToolMeta(

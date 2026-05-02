@@ -587,12 +587,185 @@ export const web_search = tool({
   },
 })
 
+// ────────────────────────────────────────────────────────────────────────
+// 8. intervention_catalogue — broad menu of UK adaptation archetypes.
+// ────────────────────────────────────────────────────────────────────────
+// Replaces the inline example list in the prompt (which biased the agent
+// toward 4–5 same-y interventions per LSOA). Each entry carries axis tags
+// (heat / flood / both), indicative cost band, maintenance burden, and the
+// archetypes it suits — the agent uses these to widen its option surface.
+// ────────────────────────────────────────────────────────────────────────
+type CatalogueEntry = {
+  archetype: string
+  category: "trees-and-canopy" | "roofs-and-walls" | "ground-and-paving" | "water-management" | "shade-and-public-realm" | "depave-and-naturalise"
+  axes: ("heat" | "flood")[]
+  description: string
+  typical_unit: string
+  cost_band: "low" | "mid" | "high"
+  maintenance_burden: "low" | "mid" | "high"
+  suits: string[]            // archetypes this fits well
+  caveats?: string
+}
+
+const INTERVENTION_CATALOGUE: CatalogueEntry[] = [
+  // Trees & canopy
+  { archetype: "Semi-mature street trees (London plane / lime / hornbeam)", category: "trees-and-canopy", axes: ["heat", "flood"], description: "In-pavement plantings on residential or high-street footways, providing shade and modest interception/SUDS effect.", typical_unit: "trees", cost_band: "mid", maintenance_burden: "mid", suits: ["Victorian/Edwardian residential terrace", "Mixed retail high street", "Park-edge residential", "Interwar suburb"] },
+  { archetype: "Pocket woodland on under-used verge / corner plot", category: "trees-and-canopy", axes: ["heat", "flood"], description: "Small dense planting (Miyawaki-style or naturalistic) on council-owned scrap parcels — fast canopy, biodiversity uplift.", typical_unit: "m²", cost_band: "low", maintenance_burden: "mid", suits: ["Post-war estate", "Industrial / former industrial", "Tower-block estate"] },
+  { archetype: "School-playground tree planting + depave", category: "trees-and-canopy", axes: ["heat", "flood"], description: "Replace tarmac at school margins with shade trees + permeable surfacing. Hits child-vulnerability axis hard.", typical_unit: "trees", cost_band: "mid", maintenance_burden: "low", suits: ["School-and-church cluster", "Post-war estate"] },
+  { archetype: "Hedgerow / front-garden re-greening campaign", category: "trees-and-canopy", axes: ["heat", "flood"], description: "Borough-funded grants to residents for pulling up paved front gardens and replanting with hedge/shrub. Attenuates surface runoff and cools.", typical_unit: "m²", cost_band: "low", maintenance_burden: "low", suits: ["Victorian/Edwardian residential terrace", "Interwar suburb"], caveats: "Uptake-dependent — requires resident engagement budget." },
+
+  // Roofs & walls
+  { archetype: "Cool-roof retrofit (high-albedo coating) on flat roofs", category: "roofs-and-walls", axes: ["heat"], description: "White / reflective coating applied to existing flat roofs of social housing, schools, civic buildings. Cheap per-m² and fast.", typical_unit: "m²", cost_band: "low", maintenance_burden: "low", suits: ["Post-war estate", "Tower-block estate", "Industrial / former industrial", "1960s-70s council low-rise"] },
+  { archetype: "Extensive green roof retrofit (sedum)", category: "roofs-and-walls", axes: ["heat", "flood"], description: "Lightweight sedum mat over existing flat roof. Modest cooling, real flood-attenuation, biodiversity uplift, BNG units.", typical_unit: "m²", cost_band: "mid", maintenance_burden: "mid", suits: ["Post-war estate", "Modern infill / new build", "1960s-70s council low-rise"], caveats: "Structural-load survey required." },
+  { archetype: "Living wall on south/west-facing civic building", category: "roofs-and-walls", axes: ["heat"], description: "Vertical greening on a single high-visibility wall — civic-pride / demonstrator beat as much as the cooling itself.", typical_unit: "m²", cost_band: "high", maintenance_burden: "high", suits: ["Mixed retail high street", "School-and-church cluster"], caveats: "High maintenance — only viable with named long-term steward." },
+
+  // Ground & paving
+  { archetype: "Permeable paving on residential side-streets", category: "ground-and-paving", axes: ["flood"], description: "Replace impermeable footway / parking bay surfacing with permeable block paving. Direct surface-water attenuation.", typical_unit: "m²", cost_band: "mid", maintenance_burden: "low", suits: ["Victorian/Edwardian residential terrace", "Interwar suburb", "Post-war estate"] },
+  { archetype: "Depave + reseed under-used hardstanding (estate margins)", category: "depave-and-naturalise", axes: ["heat", "flood"], description: "Remove redundant tarmac on estate edges and reseed as wildflower / amenity grass. Cooling AND infiltration AND biodiversity.", typical_unit: "m²", cost_band: "low", maintenance_burden: "low", suits: ["Post-war estate", "Tower-block estate", "1960s-70s council low-rise", "Industrial / former industrial"] },
+
+  // Water management (SuDS family)
+  { archetype: "Raingardens at junction build-outs", category: "water-management", axes: ["flood", "heat"], description: "Engineered planted depressions at street corners that intercept road runoff before it hits the gully. Strong flood signal, modest cooling.", typical_unit: "raingardens", cost_band: "mid", maintenance_burden: "mid", suits: ["Victorian/Edwardian residential terrace", "Mixed retail high street", "Riverside / canal-side"] },
+  { archetype: "Bioswales along residential streets", category: "water-management", axes: ["flood"], description: "Linear vegetated channels alongside the kerb that move and filter surface water. Larger footprint than raingardens.", typical_unit: "linear_m", cost_band: "mid", maintenance_burden: "mid", suits: ["Interwar suburb", "Post-war estate"] },
+  { archetype: "Daylighting / partial-naturalisation of culverted watercourse", category: "water-management", axes: ["flood", "heat"], description: "Open up a previously-buried stream segment as a naturalised channel — significant flood capacity, evaporative cooling, biodiversity hero project.", typical_unit: "linear_m", cost_band: "high", maintenance_burden: "mid", suits: ["Riverside / canal-side", "Industrial / former industrial"], caveats: "Requires EA consent + multi-year scoping. Flagship-scale only." },
+  { archetype: "Estate attenuation pond / detention basin", category: "water-management", axes: ["flood"], description: "Engineered surface storage of stormwater on under-used estate land — protects downstream surface-water flooding receptors.", typical_unit: "m²", cost_band: "high", maintenance_burden: "mid", suits: ["Post-war estate", "Tower-block estate"] },
+
+  // Shade & public realm
+  { archetype: "Shade structures at bus stops / school gates / market squares", category: "shade-and-public-realm", axes: ["heat"], description: "Lightweight permanent shade canopies over fixed waiting / dwell points — cheapest per shaded-person-hour, especially for over-65 and under-5.", typical_unit: "structures", cost_band: "low", maintenance_burden: "low", suits: ["Mixed retail high street", "School-and-church cluster", "Post-war estate"] },
+  { archetype: "Pedestrian widening with associated shade trees", category: "shade-and-public-realm", axes: ["heat"], description: "Reallocate carriageway space to wider footways and embed plane / lime trees in the new build-out. Crucial repackaging route — unlocks Active Travel England funds beyond pure climate budgets.", typical_unit: "linear_m", cost_band: "high", maintenance_burden: "mid", suits: ["Mixed retail high street", "Victorian/Edwardian terrace high-street"] },
+  { archetype: "Mister / hydration / cooling-centre upgrade in a public building", category: "shade-and-public-realm", axes: ["heat"], description: "Convert under-used civic indoor space (library, leisure centre) into a designated cooling refuge with extended summer hours.", typical_unit: "structures", cost_band: "low", maintenance_burden: "low", suits: ["Post-war estate", "Tower-block estate", "Mixed retail high street"], caveats: "Operational cost not capital cost — councils undervalue it." },
+
+  // Naturalisation
+  { archetype: "Wildflower / meadow conversion of amenity grassland", category: "depave-and-naturalise", axes: ["heat", "flood"], description: "Stop mowing under-used council grass and convert to wildflower meadow. Near-zero cost, biodiversity + BNG + modest cooling.", typical_unit: "m²", cost_band: "low", maintenance_burden: "low", suits: ["Park-edge residential", "Post-war estate", "Interwar suburb"] },
+]
+
+export const intervention_catalogue = tool({
+  description:
+    "Return the full menu of UK climate-adaptation intervention archetypes available to consider — across trees & canopy, roofs & walls, ground & paving, water management (SuDS), shade & public realm, and depaving. Each entry carries axis tags (heat / flood / both), cost band, maintenance burden, and the place archetypes it suits. Call this ONCE in Step 3 before shortlisting interventions, and use it to widen your option surface beyond the obvious. The agent's job is to PICK from this menu (or invent close variants for the specific place); not to default to trees+roofs every time.",
+  inputSchema: z.object({
+    archetype_filter: z
+      .string()
+      .optional()
+      .describe(
+        "Optional: place-archetype string. If supplied, results are scored by fit to the archetype but the full catalogue is still returned."
+      ),
+  }),
+  execute: async ({ archetype_filter }) => {
+    const entries = INTERVENTION_CATALOGUE.map((e) => {
+      const fit = archetype_filter
+        ? e.suits.some((s) => s.toLowerCase() === archetype_filter.toLowerCase())
+          ? "strong-fit"
+          : e.suits.some((s) =>
+              s.toLowerCase().includes(archetype_filter.toLowerCase().split(" ")[0])
+            )
+          ? "partial-fit"
+          : "weak-fit"
+        : undefined
+      return { ...e, ...(fit ? { archetype_fit: fit } : {}) }
+    })
+    return {
+      catalogue: entries,
+      note:
+        "Pick interventions that match this LSOA's archetype + hypotheses. Surface combined-axis (heat AND flood) options when feasible — they're under-used by most planners.",
+    }
+  },
+})
+
+// ────────────────────────────────────────────────────────────────────────
+// 9. propose_intervention — externalises the agent's decision-making.
+// ────────────────────────────────────────────────────────────────────────
+// The agent calls this once per candidate (status: considering / accepted /
+// dropped) so the UI can render the live "interventions banner". Reusing an
+// id updates the same banner card. This makes "considered and dropped"
+// candidates a first-class part of the dossier, not a paragraph.
+//
+// The tool itself is a no-op server-side — it just echoes the input back.
+// The value is in the streamed tool-call event the UI subscribes to.
+// ────────────────────────────────────────────────────────────────────────
+export const propose_intervention = tool({
+  description:
+    "Externalise an intervention decision so the UI can render a live decision banner. Call ONCE per candidate when first considering it (status: 'considering'), then call AGAIN with the same id to update to 'accepted' (after evidence is in) or 'dropped' (if you reject it). Provide a short rationale and any evidence references on the final call. At least 2 dropped candidates should be surfaced — proof of decision-making is critical to the trustworthiness of the dossier.",
+  inputSchema: z.object({
+    id: z.string().describe("Stable id you choose; reuse across status updates"),
+    name: z.string(),
+    status: z.enum(["considering", "accepted", "dropped"]),
+    axes_addressed: z.array(z.enum(["heat", "flood"])).optional(),
+    rationale: z.string().describe("One-sentence reason for this status"),
+    target_streets: z.array(z.string()).optional(),
+    evidence_quality: z.enum(["strong", "moderate", "weak"]).optional(),
+    catalogue_archetype: z.string().optional(),
+  }),
+  execute: async (input) => {
+    return { ok: true, ...input, recorded_at: new Date().toISOString() }
+  },
+})
+
+// ────────────────────────────────────────────────────────────────────────
+// 10. critique_funding_match — adversarial review of fund-intervention pairs.
+// ────────────────────────────────────────────────────────────────────────
+// Kept deliberately mechanical (returns a structured prompt frame), so the
+// agent uses it as a forced critique step rather than a free-form rumination.
+// Realistic coverage in the dossier is the agent's responsibility — this
+// tool just makes the heuristic explicit and visible.
+// ────────────────────────────────────────────────────────────────────────
+export const critique_funding_match = tool({
+  description:
+    "Force a structured critical review of one fund-intervention pairing. Returns a checklist of risk factors the agent must address: award probability (applicants per award), match-funding gap, timing reality, geographic/political fit, capacity caps, past awardee patterns. Call ONCE per fund in Step 6 — even funds that look 'open' may have low realistic award probability. Use the response to set realistic award_probability and match_secured_pct in the final dossier JSON.",
+  inputSchema: z.object({
+    fund_name: z.string(),
+    fund_url: z.string().optional(),
+    intervention_ids: z.array(z.string()).describe("Which interventions this fund covers"),
+    scraped_text_excerpt: z.string().optional().describe("Any relevant scraped text already captured"),
+  }),
+  execute: async ({ fund_name, intervention_ids }) => {
+    return {
+      fund_name,
+      checklist: [
+        {
+          axis: "award_probability",
+          prompt:
+            "Estimate applicants per award. If unknown: competitive funds default ≤ 0.30, formula/non-competitive ≤ 0.60. Search for 'past awardees' or 'previous round results' if scraping captured them.",
+        },
+        {
+          axis: "match_funding_gap",
+          prompt:
+            "Does this fund require match funding? If yes, what % and where would it come from? Unsourced match = realistic coverage from this fund is 0.",
+        },
+        {
+          axis: "timing_reality",
+          prompt:
+            "Time between today and the deadline. Funds closing in <8 weeks are usually unusable for fresh schemes (no time to scope + secure matchin).",
+        },
+        {
+          axis: "geographic_political_fit",
+          prompt:
+            "Is this fund explicitly rural / northern / urban / regional in its eligibility? Mismatches kill applications even when the technical scope fits.",
+        },
+        {
+          axis: "capacity_caps",
+          prompt:
+            "Does this fund cap applications per applicant per cycle? Has the borough already submitted to this round?",
+        },
+        {
+          axis: "past_awardee_patterns",
+          prompt:
+            "If past awardees are listed: same boroughs winning repeatedly? New entrants ignored? Type of project they actually fund?",
+        },
+      ],
+      instruction:
+        `For each axis, answer briefly in your response, then assign realistic award_probability (0–1) and match_secured_pct (0–100) for ${fund_name} → ${intervention_ids.join(", ")} in the final dossier JSON.`,
+    }
+  },
+})
+
 export const tools = {
   get_lsoa_context,
   query_lsoa_subset,
+  intervention_catalogue,
+  propose_intervention,
   search_evidence,
   web_search,
   search_funding_schemes,
   scrape_funding_page,
   get_fallback_funds,
+  critique_funding_match,
 }

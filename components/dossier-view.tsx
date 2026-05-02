@@ -363,14 +363,20 @@ export function DossierView({ dossier, rawMarkdown, areaName }: DossierViewProps
     })
   }, [dossier, rawMarkdown, areaName])
 
-  // Headline card values
-  const coverage = dossier.fund_coverage_pct ?? 0
-  const topVuln = 0 // not part of dossier shape, only used for label nuance
-  const priority = priorityFromCoverage(coverage, topVuln)
+  // Headline numbers — prefer the realistic (risk-adjusted) coverage when the
+  // agent supplied it. Older dossiers only have fund_coverage_pct.
+  const optimistic =
+    dossier.optimistic_coverage_pct ?? dossier.fund_coverage_pct ?? 0
+  const realistic = dossier.realistic_coverage_pct
+  const coverageForPriority = realistic ?? optimistic
+  const topVuln = dossier.vulnerability_summary?.heat_score ?? 0
+  const priority = priorityFromCoverage(coverageForPriority, topVuln)
   const PriorityIcon = priority.Icon
 
   const scrapedFunds = dossier.funds.filter((f) => f.verified_via === "scraped")
   const fallbackFunds = dossier.funds.filter((f) => f.verified_via === "fallback")
+  const heatScore = dossier.vulnerability_summary?.heat_score
+  const floodScore = dossier.vulnerability_summary?.flood_score
 
   return (
     <motion.div
@@ -397,14 +403,47 @@ export function DossierView({ dossier, rawMarkdown, areaName }: DossierViewProps
           </div>
           <div>
             <p className="text-[9px] font-mono text-ink-subtle uppercase tracking-widest">
-              Fund coverage
+              Realistic coverage
             </p>
             <p className="text-sm font-mono text-evidence-deep">
-              {Math.round(coverage)}%
+              {Math.round(realistic ?? optimistic)}%
             </p>
+            {realistic != null && realistic !== optimistic && (
+              <p className="text-[9px] font-mono text-ink-subtle">
+                optimistic {Math.round(optimistic)}%
+              </p>
+            )}
           </div>
         </div>
       </div>
+
+      {/* ── Place + vulnerability strip ── */}
+      {(dossier.place_archetype || heatScore != null || floodScore != null) && (
+        <div className="bg-paper-deep border border-line rounded-md p-2.5 flex flex-wrap items-center gap-3">
+          {dossier.place_archetype && (
+            <span className="text-[11px] font-serif italic text-ink">
+              {dossier.place_archetype}
+            </span>
+          )}
+          {heatScore != null && (
+            <span className="text-[10px] font-mono inline-flex items-center gap-1">
+              <span className="text-ink-subtle uppercase tracking-widest">Heat</span>
+              <span className="text-heat-deep">{heatScore.toFixed(2)}</span>
+            </span>
+          )}
+          {floodScore != null && floodScore > 0 && (
+            <span className="text-[10px] font-mono inline-flex items-center gap-1">
+              <span className="text-ink-subtle uppercase tracking-widest">Flood</span>
+              <span className="text-flood-deep">{floodScore.toFixed(2)}</span>
+            </span>
+          )}
+          {dossier.vulnerability_summary?.headline && (
+            <span className="text-[11px] text-ink-muted italic flex-1 min-w-[200px]">
+              {dossier.vulnerability_summary.headline}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* ── Interventions ── */}
       <div>
@@ -424,6 +463,9 @@ export function DossierView({ dossier, rawMarkdown, areaName }: DossierViewProps
                   </p>
                   <p className="text-[10px] font-mono text-ink-muted mt-0.5">
                     {iv.quantity} {iv.unit} · {iv.target_locations.length} sites
+                    {iv.annual_maintenance_gbp != null && (
+                      <> · £{iv.annual_maintenance_gbp.toLocaleString()}/yr maint.</>
+                    )}
                   </p>
                 </div>
                 <span className="text-[11px] font-mono text-fund-deep whitespace-nowrap">
@@ -433,16 +475,45 @@ export function DossierView({ dossier, rawMarkdown, areaName }: DossierViewProps
               <p className="text-[11px] text-ink-muted leading-relaxed">
                 {iv.rationale_short}
               </p>
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {iv.axes_addressed?.map((axis) => (
+                  <span
+                    key={axis}
+                    className={`text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border ${
+                      axis === "heat"
+                        ? "bg-heat-soft border-heat/40 text-heat-deep"
+                        : "bg-flood-soft border-flood/40 text-flood-deep"
+                    }`}
+                  >
+                    {axis}
+                  </span>
+                ))}
                 <span
                   className={`text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border ${evidenceBadge(iv.evidence_quality)}`}
                 >
                   {iv.evidence_quality} evidence
                 </span>
-                <span className="text-[10px] text-ink-muted italic">
+                <span className="text-[10px] text-ink-muted italic flex-1 min-w-[120px]">
                   {iv.evidence_effect_size}
                 </span>
               </div>
+              {iv.co_benefits && iv.co_benefits.length > 0 && (
+                <div className="flex flex-wrap gap-1 pt-1">
+                  {iv.co_benefits.map((cb, ci) => (
+                    <span
+                      key={ci}
+                      className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-paper-deep text-ink-muted border border-line"
+                    >
+                      + {cb}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {iv.equity_note && (
+                <p className="text-[10px] text-ink-muted italic leading-relaxed pl-2 border-l-2 border-line-strong">
+                  {iv.equity_note}
+                </p>
+              )}
             </div>
           ))}
         </div>
@@ -494,6 +565,57 @@ export function DossierView({ dossier, rawMarkdown, areaName }: DossierViewProps
                 <p className="text-[11px] text-ink-muted leading-relaxed">
                   {f.eligibility_justification}
                 </p>
+                {/* Risk-adjusted probability + match gap */}
+                {(f.award_probability != null || f.match_secured_pct != null) && (
+                  <div className="flex flex-wrap gap-2 text-[10px] font-mono">
+                    {f.award_probability != null && (
+                      <span className="inline-flex items-center gap-1">
+                        <span className="text-ink-subtle uppercase tracking-widest text-[8px]">
+                          award prob
+                        </span>
+                        <span
+                          className={
+                            f.award_probability >= 0.5
+                              ? "text-evidence-deep"
+                              : f.award_probability >= 0.25
+                              ? "text-fund-deep"
+                              : "text-heat-deep"
+                          }
+                        >
+                          {Math.round(f.award_probability * 100)}%
+                        </span>
+                      </span>
+                    )}
+                    {f.match_required_pct > 0 && (
+                      <span className="inline-flex items-center gap-1">
+                        <span className="text-ink-subtle uppercase tracking-widest text-[8px]">
+                          match
+                        </span>
+                        <span
+                          className={
+                            (f.match_secured_pct ?? 0) >= f.match_required_pct
+                              ? "text-evidence-deep"
+                              : "text-heat-deep"
+                          }
+                        >
+                          {f.match_secured_pct ?? 0}/{f.match_required_pct}%
+                        </span>
+                      </span>
+                    )}
+                  </div>
+                )}
+                {f.weaknesses && f.weaknesses.length > 0 && (
+                  <div className="bg-heat-soft/40 border-l-2 border-heat/40 pl-2 py-1 space-y-0.5">
+                    <p className="font-mono uppercase text-[8px] tracking-widest text-heat-deep">
+                      Risks
+                    </p>
+                    {f.weaknesses.map((w, wi) => (
+                      <p key={wi} className="text-[10px] text-heat-deep leading-relaxed">
+                        — {w}
+                      </p>
+                    ))}
+                  </div>
+                )}
                 {f.repackaging_note && (
                   <p className="text-[11px] text-fund-deep leading-relaxed bg-fund-soft/40 border-l-2 border-fund/50 pl-2 py-1">
                     <span className="font-mono uppercase text-[8px] tracking-widest text-fund-deep mr-1.5">
@@ -518,6 +640,18 @@ export function DossierView({ dossier, rawMarkdown, areaName }: DossierViewProps
               </a>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* ── Equity audit ── */}
+      {dossier.equity_audit && (
+        <div className="bg-evidence-soft/50 border-l-2 border-evidence/50 rounded-r-md p-2.5 space-y-1">
+          <p className="text-[9px] font-mono text-evidence-deep uppercase tracking-widest">
+            Equity audit
+          </p>
+          <p className="text-[11px] text-ink leading-relaxed">
+            {dossier.equity_audit}
+          </p>
         </div>
       )}
 
