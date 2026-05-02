@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useCallback, useState } from "react"
 import { useCanopyStore, type LsoaData, type Intervention } from "@/lib/store"
-import { vulnerabilityColour, normaliseScore, SELECTED_STROKE } from "@/lib/colours"
+import { fillForAxis, normaliseScore, SELECTED_STROKE, syntheticFloodScore } from "@/lib/colours"
 import { TreePine, House, Square, Umbrella, Trees, MapPin, X, Banknote } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 // page.tsx wraps this component in next/dynamic with ssr:false, so importing
@@ -106,6 +106,7 @@ export function LsoaMap({ className }: LsoaMapProps) {
 
   const {
     selectedCity,
+    vulnerabilityAxis,
     selectedLsoa,
     lsoaData,
     setLsoaData,
@@ -143,7 +144,10 @@ export function LsoaMap({ className }: LsoaMapProps) {
     }
   }, [selectedCity, setLsoaData])
 
-  // Build GeoJSON from the loaded data
+  // Build GeoJSON from the loaded data. Polygon fill is computed for the
+  // currently-selected vulnerability axis (heat / flood / combined). The
+  // useCallback identity changes when the axis changes, which forces the
+  // polygon-update effect to re-run with new colours.
   const buildGeoJSON = useCallback(
     (data: LsoaData): GeoJSON.FeatureCollection => {
       const scores = Object.values(data).map((f) => f.vulnerability_score)
@@ -152,22 +156,24 @@ export function LsoaMap({ className }: LsoaMapProps) {
 
       return {
         type: "FeatureCollection",
-        features: Object.entries(data).map(([code, feat]) => ({
-          type: "Feature",
-          id: code,
-          properties: {
-            lsoa_code: code,
-            name: feat.name,
-            vulnerability_score: feat.vulnerability_score,
-            fill_color: vulnerabilityColour(
-              normaliseScore(feat.vulnerability_score, minScore, maxScore)
-            ),
-          },
-          geometry: feat.geometry,
-        })),
+        features: Object.entries(data).map(([code, feat]) => {
+          const heatNorm = normaliseScore(feat.vulnerability_score, minScore, maxScore)
+          return {
+            type: "Feature",
+            id: code,
+            properties: {
+              lsoa_code: code,
+              name: feat.name,
+              vulnerability_score: feat.vulnerability_score,
+              flood_score: syntheticFloodScore(feat),
+              fill_color: fillForAxis(vulnerabilityAxis, feat, heatNorm),
+            },
+            geometry: feat.geometry,
+          }
+        }),
       }
     },
-    []
+    [vulnerabilityAxis]
   )
 
   // Initialise map
@@ -305,32 +311,45 @@ export function LsoaMap({ className }: LsoaMapProps) {
       })
     } else {
       ;(map.getSource("lsoas") as maplibregl.GeoJSONSource).setData(geojson)
-      // Re-fit on dataset swap (city change). Compute bbox of new dataset and
-      // ease the camera into it.
-      const coords: [number, number][] = []
-      geojson.features.forEach((f) => {
-        const geom = f.geometry as GeoJSON.Polygon | GeoJSON.MultiPolygon
-        if (geom.type === "Polygon") {
-          geom.coordinates[0].forEach(([lng, lat]) => coords.push([lng, lat]))
-        } else if (geom.type === "MultiPolygon") {
-          geom.coordinates.forEach((poly) =>
-            poly[0].forEach(([lng, lat]) => coords.push([lng, lat]))
-          )
-        }
-      })
-      if (coords.length > 0) {
-        const lngs = coords.map(([lng]) => lng)
-        const lats = coords.map(([, lat]) => lat)
-        map.fitBounds(
-          [
-            [Math.min(...lngs), Math.min(...lats)],
-            [Math.max(...lngs), Math.max(...lats)],
-          ],
-          { padding: 60, duration: 600, maxZoom: 12 }
-        )
-      }
     }
   }, [mapLoaded, lsoaData, buildGeoJSON, selectedLsoa, hoveredLsoa, setSelectedLsoa, resetAgent])
+
+  // Re-fit camera ONLY when the city (i.e. dataset identity) actually changes.
+  // The previous version fit on every effect run, which stomped the user's
+  // manual zoom whenever they clicked an LSOA or hovered.
+  const lastFittedDatasetRef = useRef<LsoaData | null>(null)
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapLoaded || Object.keys(lsoaData).length === 0) return
+    if (lastFittedDatasetRef.current === lsoaData) return
+    // Only auto-fit when *replacing* a dataset (i.e. on city change),
+    // not on the very first load — the first-load fit is handled inside the
+    // source-creation branch above.
+    const isFirstLoad = lastFittedDatasetRef.current === null
+    lastFittedDatasetRef.current = lsoaData
+    if (isFirstLoad) return
+    const coords: [number, number][] = []
+    Object.values(lsoaData).forEach((f) => {
+      const geom = f.geometry as GeoJSON.Polygon | GeoJSON.MultiPolygon
+      if (geom.type === "Polygon") {
+        geom.coordinates[0].forEach(([lng, lat]) => coords.push([lng, lat]))
+      } else if (geom.type === "MultiPolygon") {
+        geom.coordinates.forEach((poly) =>
+          poly[0].forEach(([lng, lat]) => coords.push([lng, lat]))
+        )
+      }
+    })
+    if (coords.length === 0) return
+    const lngs = coords.map(([lng]) => lng)
+    const lats = coords.map(([, lat]) => lat)
+    map.fitBounds(
+      [
+        [Math.min(...lngs), Math.min(...lats)],
+        [Math.max(...lngs), Math.max(...lats)],
+      ],
+      { padding: 60, duration: 600, maxZoom: 12 }
+    )
+  }, [mapLoaded, lsoaData])
 
   // Update stroke when selection/hover changes
   useEffect(() => {
@@ -472,25 +491,6 @@ export function LsoaMap({ className }: LsoaMapProps) {
         )
       : []
 
-  const handleResetView = useCallback(() => {
-    if (!mapRef.current || Object.keys(lsoaData).length === 0) return
-    const geojson = buildGeoJSON(lsoaData)
-    const coords: [number, number][] = []
-    geojson.features.forEach((f) => {
-      const geom = f.geometry as GeoJSON.Polygon | GeoJSON.MultiPolygon
-      if (geom.type === "Polygon") {
-        geom.coordinates[0].forEach(([lng, lat]) => coords.push([lng, lat]))
-      }
-    })
-    if (coords.length > 0) {
-      const lngs = coords.map(([lng]) => lng)
-      const lats = coords.map(([, lat]) => lat)
-      mapRef.current.fitBounds(
-        [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
-        { padding: 60, duration: 600 }
-      )
-    }
-  }, [lsoaData, buildGeoJSON])
 
   return (
     <div className={`relative w-full h-full ${className ?? ""}`}>
@@ -531,22 +531,84 @@ export function LsoaMap({ className }: LsoaMapProps) {
         )}
       </AnimatePresence>
 
-      {/* Vulnerability legend */}
+      {/* Axis toggle (top-left) */}
+      <div className="absolute top-4 right-4 z-10 bg-paper-elevated/90 backdrop-blur-sm border border-line-strong/60 rounded-md p-1 flex gap-0.5">
+        {(["heat", "flood", "combined"] as const).map((axis) => (
+          <button
+            key={axis}
+            type="button"
+            onClick={() => useCanopyStore.getState().setVulnerabilityAxis(axis)}
+            className={`px-2.5 py-1 text-[10px] font-mono uppercase tracking-widest rounded transition-colors ${
+              vulnerabilityAxis === axis
+                ? axis === "heat"
+                  ? "bg-heat-soft text-heat-deep"
+                  : axis === "flood"
+                  ? "bg-flood-soft text-flood-deep"
+                  : "bg-evidence-soft text-evidence-deep"
+                : "text-ink-subtle hover:text-ink"
+            }`}
+          >
+            {axis}
+          </button>
+        ))}
+      </div>
+
+      {/* Vulnerability legend (bottom-left). Switches gradient + label per axis. */}
       <div className="absolute bottom-10 left-4 z-10 bg-paper-elevated/90 backdrop-blur-sm border border-line-strong/60 rounded-md px-3 py-2.5">
         <p className="text-[10px] font-mono text-ink-muted uppercase tracking-widest mb-1.5">
-          Heat vulnerability
+          {vulnerabilityAxis === "heat"
+            ? "Heat vulnerability"
+            : vulnerabilityAxis === "flood"
+            ? "Flood vulnerability *"
+            : "Combined risk"}
         </p>
-        <div
-          className="w-28 h-2 rounded-sm"
-          style={{
-            background:
-              "linear-gradient(to right, #ffffb2, #fecc5c, #fd8d3c, #f03b20, #bd0026)",
-          }}
-        />
-        <div className="flex justify-between mt-1">
-          <span className="text-[9px] font-mono text-ink-subtle">Low</span>
-          <span className="text-[9px] font-mono text-ink-subtle">High</span>
-        </div>
+        {vulnerabilityAxis === "combined" ? (
+          // 3×3 swatch grid
+          <div>
+            <div className="grid grid-cols-3 gap-0.5 w-[72px]">
+              {[
+                ["#cc6a3c", "#b96a86", "#84497a"],
+                ["#f0c4a4", "#c5a8c0", "#7796b9"],
+                ["#f5efe1", "#cee0eb", "#7ba6c9"],
+              ].map((row, i) =>
+                row.map((c, j) => (
+                  <span
+                    key={`${i}-${j}`}
+                    className="block w-5 h-5 rounded-sm"
+                    style={{ background: c }}
+                  />
+                ))
+              )}
+            </div>
+            <div className="flex justify-between mt-1 w-[72px]">
+              <span className="text-[8px] font-mono text-flood-deep">flood→</span>
+            </div>
+            <div className="text-[8px] font-mono text-heat-deep -mt-[8px] -ml-[10px] rotate-[-90deg] origin-top-left absolute">
+              heat→
+            </div>
+          </div>
+        ) : (
+          <>
+            <div
+              className="w-28 h-2 rounded-sm"
+              style={{
+                background:
+                  vulnerabilityAxis === "heat"
+                    ? "linear-gradient(to right, #ffffb2, #fecc5c, #fd8d3c, #f03b20, #bd0026)"
+                    : "linear-gradient(to right, #f1eef6, #bdc9e1, #74a9cf, #2b8cbe, #045a8d)",
+              }}
+            />
+            <div className="flex justify-between mt-1">
+              <span className="text-[9px] font-mono text-ink-subtle">Low</span>
+              <span className="text-[9px] font-mono text-ink-subtle">High</span>
+            </div>
+          </>
+        )}
+        {vulnerabilityAxis === "flood" && (
+          <p className="text-[8px] font-mono text-ink-subtle italic mt-1">
+            * proxy from canopy + density + IMD
+          </p>
+        )}
       </div>
 
       {/* Intervention legend (shown when dossier is loaded) */}
@@ -596,15 +658,6 @@ export function LsoaMap({ className }: LsoaMapProps) {
         )}
       </AnimatePresence>
 
-      {/* Reset view button */}
-      <div className="absolute bottom-10 right-12 z-10">
-        <button
-          onClick={handleResetView}
-          className="bg-paper-elevated/95 hover:bg-paper-elevated backdrop-blur-sm border border-line-strong/70 rounded-md px-2.5 py-1.5 text-[10px] font-mono text-ink-muted hover:text-ink transition-colors uppercase tracking-widest"
-        >
-          Reset view
-        </button>
-      </div>
 
       {/* Persistent intervention popup (click marker) */}
       <AnimatePresence>
@@ -742,8 +795,8 @@ export function LsoaMap({ className }: LsoaMapProps) {
               </p>
               <p className="text-[11px] text-ink-muted leading-relaxed mb-4">
                 {isAgentRunning
-                  ? "The current analysis is still running and will be discarded."
-                  : "The current trace and dossier will be discarded — there's no session memory yet, so this can't be restored."}
+                  ? "The current analysis is still running. Switching now stops it; the partial trace will be saved and you can return to it from the Recent analyses list."
+                  : "Your current dossier is saved automatically — you can return to it from the Recent analyses list."}
               </p>
               <div className="flex gap-2 justify-end">
                 <button

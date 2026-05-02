@@ -73,10 +73,15 @@ Follow the STEP structure in the system prompt — emit each "## Step N:" headin
     model: anthropic("claude-sonnet-4-5"),
     messages,
     tools,
-    // Cap output ceiling — the default (64k) bloats accounting and isn't needed.
-    maxOutputTokens: 8192,
-    // Allow the agent to chain tool calls — multiple rounds of tool/text steps.
-    stopWhen: stepCountIs(20),
+    // Sized to land the JSON dossier reliably without burning wall-clock.
+    // Tool-call budget breakdown (target):
+    //   1 (context) + 1–2 (subset) + 1 (catalogue) + 4–5 (evidence) +
+    //   4–5 (propose_intervention final) + 1 (search_funding_schemes) +
+    //   2 (web_search) + 3 (scrape_funding_page) + 1 (get_fallback_funds?) +
+    //   1 (compare_to_similar_lsoas) + 0–1 (critique_funding_match)
+    //   ≈ 22–26 tool calls. Step cap of 30 leaves headroom; +text steps.
+    maxOutputTokens: 12288,
+    stopWhen: stepCountIs(30),
     // Suppress the SDK's prompt-injection warning. We're putting our own
     // hardcoded system prompt in messages[0] specifically so we can attach
     // anthropic cacheControl — none of it is user-supplied.

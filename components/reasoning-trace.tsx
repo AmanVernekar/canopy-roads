@@ -503,17 +503,12 @@ export function ReasoningTrace({
     })
   })
 
-  // Show a "Thinking…" indicator whenever the agent is mid-flight but the last
-  // visible content isn't actively streaming text (i.e. between tool calls,
-  // before the first token, or after a tool result while the model decides
-  // what to do next). Patterned after Claude Code's idle indicator so users
-  // don't think the UI has hung.
-  const lastMsg = messages[messages.length - 1]
-  const lastPart = lastMsg?.parts?.[lastMsg.parts.length - 1]
-  const lastPartType = (lastPart as { type?: string } | undefined)?.type
-  const lastIsActiveText =
-    lastMsg?.role === "assistant" && lastPartType === "text"
-  const showThinking = isStreaming && !lastIsActiveText
+  // Always show the "Thinking…" indicator while the agent is mid-flight.
+  // Earlier we hid it during text streaming, but the long Step 8 dossier
+  // emission (with the JSON block) made the UI look stalled — users couldn't
+  // tell if the agent was working or hung. Keeping it visible throughout
+  // makes the live state unambiguous.
+  const showThinking = isStreaming
 
   return (
     <div className="space-y-2 text-[12px]">

@@ -151,6 +151,25 @@ function round6(n: number): number {
   return Math.round(n * 1e6) / 1e6
 }
 
+/**
+ * Synthetic flood-vulnerability proxy. Same formula as the client-side one
+ * in lib/colours.ts — kept in sync to avoid two answers for the same LSOA.
+ * Used until per-LSOA EA Risk-of-Flooding-from-Surface-Water data is loaded.
+ */
+function floodProxy(rec: LsoaRecord): number {
+  const canopy = rec.canopy_cover_pct ?? 15
+  const dens = rec.pop_density_per_ha ?? 80
+  const imd = rec.imd_decile ?? 5
+  const bld = rec.building_count ?? 200
+  const impervious = Math.max(0, Math.min(1, (30 - canopy) / 30))
+  const density = Math.max(0, Math.min(1, dens / 250))
+  const deprivation = Math.max(0, Math.min(1, (11 - imd) / 10))
+  const builtMass = Math.max(0, Math.min(1, bld / 1000))
+  return Math.round(
+    (0.4 * impervious + 0.25 * density + 0.15 * deprivation + 0.2 * builtMass) * 1000
+  ) / 1000
+}
+
 // ────────────────────────────────────────────────────────────────────────
 // 1. get_lsoa_context — token-efficient profile of the LSOA. Always first.
 // ────────────────────────────────────────────────────────────────────────

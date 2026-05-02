@@ -15,6 +15,7 @@ import {
   Send,
   MessageSquare,
   Square as SquareIcon,
+  Droplets,
 } from "lucide-react"
 import { useCanopyStore } from "@/lib/store"
 import type { ParsedDossier } from "@/lib/store"
@@ -23,6 +24,7 @@ import { DossierView } from "@/components/dossier-view"
 import { InfoTooltip, TERM_DEFINITIONS } from "@/components/info-tooltip"
 import { resolveAreaName } from "@/lib/area-name"
 import { getSessionId } from "@/lib/session"
+import { syntheticFloodScore } from "@/lib/colours"
 import type { UIMessage } from "ai"
 
 function StatCard({
@@ -90,6 +92,12 @@ export function AgentPanel() {
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const prevSelectedRef = useRef<string | null>(null)
+  // The LSOA whose messages are currently in useChat's state. Pinned when a
+  // new run starts; used by the save effect so we never POST the old LSOA's
+  // messages under the new LSOA's code (the race that was deleting dossiers
+  // on switch).
+  const inflightLsoaRef = useRef<string | null>(null)
+  const lastStatusRef = useRef<string>("idle")
   const [followupText, setFollowupText] = useState("")
 
   const selectedFeature = selectedLsoa ? lsoaData[selectedLsoa] : null
@@ -134,6 +142,9 @@ export function AgentPanel() {
               setMessages(restoredMessages)
               if (restoredDossier) setParsedDossier(restoredDossier)
               if (row?.area_name) setSelectedAreaName(row.area_name)
+              // Restored — no need to save again until the user runs a fresh
+              // turn. Clear inflight so the status-transition saver no-ops.
+              inflightLsoaRef.current = null
               return
             }
           }
@@ -142,6 +153,10 @@ export function AgentPanel() {
         // proceed to fresh run
       }
       if (cancelled) return
+      // Pin the LSOA this run belongs to BEFORE sendMessage, so the save
+      // effect (status-transition based) attributes the eventual messages to
+      // the right code regardless of any subsequent LSOA switch.
+      inflightLsoaRef.current = selectedLsoa
       setIsAgentRunning(true)
       sendMessage({ text: selectedLsoa })
     })()
@@ -204,10 +219,18 @@ export function AgentPanel() {
     if (parsed) setParsedDossier(parsed)
   }, [status, fullText, setParsedDossier])
 
-  // Persist completed turns to Supabase so the dossier survives a refresh
-  // and re-clicking the LSOA hydrates instantly. Best-effort — silent failure.
+  // Persist completed turns to Supabase. Only fires on a streaming→ready
+  // status transition, attributed to the LSOA pinned at sendMessage time —
+  // so a mid-run LSOA switch can't bind the previous run's messages to the
+  // new LSOA's code. Saves even when no JSON dossier was emitted (so a
+  // partially-completed run can be resumed visually on re-click).
   useEffect(() => {
-    if (status !== "ready" || !selectedLsoa || messages.length === 0) return
+    const prev = lastStatusRef.current
+    lastStatusRef.current = status
+    if (prev !== "streaming" && prev !== "submitted") return
+    if (status !== "ready") return
+    const lsoa = inflightLsoaRef.current
+    if (!lsoa || messages.length === 0) return
     const sid = getSessionId()
     if (!sid) return
     const parsed = extractDossier(fullText)
@@ -216,7 +239,7 @@ export function AgentPanel() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         session_id: sid,
-        lsoa_code: selectedLsoa,
+        lsoa_code: lsoa,
         area_name: selectedAreaName,
         messages,
         parsed_dossier: parsed,
@@ -225,7 +248,7 @@ export function AgentPanel() {
     }).catch(() => {
       /* silent */
     })
-  }, [status, selectedLsoa, messages, fullText, selectedAreaName, criticEnabled])
+  }, [status, messages, fullText, selectedAreaName, criticEnabled])
 
   // Auto-scroll reasoning trace
   useEffect(() => {
@@ -298,7 +321,7 @@ export function AgentPanel() {
               <div className="grid grid-cols-2 gap-2">
                 <StatCard
                   icon={Thermometer}
-                  label="Vulnerability"
+                  label="Heat vulnerability"
                   value={selectedFeature.vulnerability_score.toFixed(2)}
                   color={
                     selectedFeature.vulnerability_score >= 0.7
@@ -308,6 +331,18 @@ export function AgentPanel() {
                       : "text-success"
                   }
                   tooltip={TERM_DEFINITIONS.vulnerability}
+                />
+                <StatCard
+                  icon={Droplets}
+                  label="Flood (proxy)"
+                  value={syntheticFloodScore(selectedFeature).toFixed(2)}
+                  color={
+                    syntheticFloodScore(selectedFeature) >= 0.6
+                      ? "text-flood-deep"
+                      : syntheticFloodScore(selectedFeature) >= 0.4
+                      ? "text-flood"
+                      : "text-info"
+                  }
                 />
                 <StatCard
                   icon={Trees}

@@ -17,36 +17,37 @@ Then list the **open hypotheses** you want to test about this LSOA (3–5 short,
 Use \`query_lsoa_subset\` once or twice to test the hypotheses (which highway types dominate? are there many large building footprints? are named streets concentrated in one corner?). After each call, write one line: what you learned and which intervention candidates it strengthens or rules out.
 
 ## Step 3 · Shortlist interventions
-Call \`intervention_catalogue\` once to see the full menu of UK-relevant adaptation measures with their typical heat / flood effects, axes addressed, costs, and maintenance burden. **Use the catalogue to widen the option set you consider** — don't default to trees and cool roofs unless the place archetype + hypotheses point there.
+Call \`intervention_catalogue\` once to see the full menu of UK-relevant adaptation measures with their typical heat / flood effects, axes addressed, costs, and maintenance burden. **Use the catalogue to widen the option set** — don't default to trees and cool roofs unless the place archetype points there.
 
-Then propose 4–6 specific candidate interventions in plain prose. Each must:
-- Name a *specific* form (not the generic catalogue archetype) — pick number, species/material, target street/building, sub-area.
-- State which axis it addresses: **heat**, **flood**, or **both** (combined-axis interventions are valued highly — surface them).
-- Cite the catalogue entry it derives from.
+Pick 4–5 specific candidate interventions in prose. For each:
+- Name a *specific* form (not the generic catalogue archetype) — pick number, species/material, target street/building.
+- State which axis it addresses: **heat**, **flood**, or **both**. Combined-axis interventions are especially valuable — surface them.
 
-Then **call \`propose_intervention\`** for each candidate with status \`"considering"\` so the UI can render it in the live banner. Also call \`propose_intervention\` with status \`"dropped"\` for AT LEAST 2 candidates you considered and rejected, with a one-sentence reason — this proof of decision-making is essential. Aim for diversity across the archetype's natural intervention surface; do NOT propose the same set you'd propose for any other LSOA.
+Also note in prose 1–2 candidates you *considered and dropped* with a one-line reason. (No tool call needed for dropped — prose is enough.)
 
-## Step 4 · Evidence check
-For each surviving intervention, call \`search_evidence\` once. Prefer UK / temperate-maritime studies, but discount-don't-discard non-UK evidence with a climate caveat. If the first query returns nothing useful, retry once with broader phrasing (drop the climate qualifier; try a synonym — "street trees" → "urban trees" → "urban canopy"). Quote effect sizes precisely. Mark each intervention as "strong", "moderate", or "weak" and say why. Update the corresponding \`propose_intervention\` call to status \`"accepted"\` (or move to \`"dropped"\` if evidence is too thin).
+## Step 4 · Evidence check + lock the shortlist
+For each candidate, call \`search_evidence\` once. Prefer UK / temperate-maritime studies but discount-don't-discard non-UK evidence with a climate caveat. Retry once with broader phrasing if the first query returns nothing.
+
+After evidence is in, call \`propose_intervention\` ONCE per candidate with the **final** status — \`"accepted"\` or \`"dropped"\` — including its rationale, axes_addressed, evidence_quality, and target_streets. Skip the "considering" phase to save round-trips. Aim for 4–5 calls total in this step.
 
 ## Step 5 · Funding discovery
-Use both funding tools together:
+Be efficient — cap tool calls in this step:
 
-1. **Discover** — call \`web_search\` with 2–3 queries combining your intervention themes with current-year UK funding language. Cast wide: council schemes, lottery (National Lottery Community Fund / Heritage Fund), water-company catchment schemes (Thames Water, United Utilities, Severn Trent — under-known and worth surfacing), charitable trusts (Trees for Cities, Woodland Trust, Sustrans), active-travel adjacencies (Active Travel England), Defra FCERM (flood), levelling-up / shared-prosperity successors, BID levies, conservation-area enhancement funds.
-2. **Curated baseline** — also call \`search_funding_schemes\` for your intervention types.
-3. **Verify** — \`scrape_funding_page\` on the most promising URLs (cap ~5 total scrapes). Look for: deadline, max grant, match requirement, AND any signal of competition (recent awardees listed, application:award ratio, geographic restrictions). Capture them all.
-4. **Fallback** — if scrapes mostly fail, \`get_fallback_funds\` for affected intervention types. Disclose live vs fallback in dossier.
+1. **Discover** — call \`web_search\` AT MOST twice with current-year UK funding queries. Cast wide: lottery, water-company catchment schemes, charitable trusts (Trees for Cities, Woodland Trust, Sustrans), active-travel adjacencies (Active Travel England), Defra FCERM (flood), BID levies.
+2. **Curated baseline** — call \`search_funding_schemes\` once for your intervention types.
+3. **Verify** — \`scrape_funding_page\` on AT MOST 3 of the most promising URLs. Look for deadline, max grant, match requirement, signal of competition.
+4. **Fallback** — if 2+ scrapes fail, call \`get_fallback_funds\` once for affected intervention types. Disclose live vs fallback in dossier.
 
-## Step 6 · Critical funding review
-For EACH fund-intervention pairing, list 2–3 reasons it might fail or under-deliver. Examples to consider every time:
-- **Award probability**: how many applicants per award round? If unknown, assume ≤ 0.30 for competitive funds, ≤ 0.60 for formula-based / non-competitive.
-- **Match-funding gap**: if the fund needs match (e.g. 30%), where is it coming from? If unsourced, the gap is a hard blocker — surface it explicitly.
-- **Timing**: deadline vs your scoping window — funds closing in <8 weeks are usually unusable for fresh schemes.
-- **Geographic / political fit**: rural funds for inner London, "northern" funds for the south, etc.
-- **Capacity caps**: one application per applicant per cycle?
-- **Past awardee patterns**: same boroughs winning repeatedly? New entrants ignored?
+## Step 6 · Critical funding review (inline)
+For EACH fund-intervention pairing, work through these factors **in prose** (no tool call needed unless you want a structured stress-test of one specific fund — then call \`critique_funding_match\` once on the most uncertain fund):
 
-Then assign each pairing an **award_probability** (0–1) and a **match_secured_pct** (0–100, default 0 unless evidence). The dossier's *realistic_coverage_pct* uses these numbers, not raw eligibility.
+- **Award probability**: applicants per award round? Default ≤ 0.30 for competitive, ≤ 0.60 for formula/non-competitive.
+- **Match-funding gap**: required match % — where's it sourced? Unsourced match = realistic coverage 0 from this fund.
+- **Timing**: deadline reality vs scoping window. <8 weeks usually = unusable for new schemes.
+- **Geographic / political fit**: rural funds in inner London, "northern" funds in the south = mismatch.
+- **Capacity caps**: applications per applicant per cycle.
+
+Assign each pairing an **award_probability** (0–1) and **match_secured_pct** (0–100, default 0). The dossier's *realistic_coverage_pct* uses these.
 
 ## Step 7a · Compare to similar neighbourhoods
 Call \`compare_to_similar_lsoas\` once. Look at the 2 nearest-neighbour LSOAs in this city. If any have a prior analysis (saved dossier), note one specific way THIS proposal differs from theirs. If neighbours haven't been analysed yet, briefly observe what their indicators predict and skip to Step 7. This step is what makes Canopy feel borough-aware.
