@@ -1,35 +1,37 @@
-# v0-canopy
+# Canopy — road-network climate-risk ranking
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [v0](https://v0.app).
+Canopy scores and ranks individual street segments for combined **surface-water-flood** and **heat** risk, proposes evidence-cited hyperlocal interventions per segment, and exports the result as a **GIS-ready layer** (GeoJSON / GeoPackage) that drops straight into a council's own QGIS / ArcGIS / web GIS.
 
-## Built with v0
+Built for highways officers and asset managers deciding where limited adaptation capital goes — asset-level, not neighbourhood-level.
 
-This repository is linked to a [v0](https://v0.app) project. You can continue developing by visiting the link below -- start new chats to make changes, and v0 will push commits directly to this repo. Every merge to `main` will automatically deploy.
+> This is the v2 pivot of [Canopy v1](https://github.com/AmanVernekar/v0-canopy), which planned interventions at LSOA (neighbourhood) level. v1 remains live; v2 changes the unit of analysis to the individual road segment.
 
-[Continue working on v0 →](https://v0.app/chat/projects/prj_6IqT8mNkofKNWrMc9ZW2Xe0iiozS)
+## How it works
 
-## Getting Started
+1. **Road network spine** — OS Open Roads centreline links (USRN-joinable), subdivided into ~100m segments.
+2. **Flood axis** — Environment Agency *Risk of Flooding from Surface Water* (2m-grid modelling) intersected per segment: depth/likelihood/hazard at 1-in-30 and 1-in-100, plus the 2050s climate epoch.
+3. **Heat axis** — hyperlocal land-surface temperature, thermal comfort (UTCI), canopy and imperviousness intersected per segment.
+4. **Deterministic scoring** — transparent, reweightable flood / heat / combined priority scores. No LLM in the scoring loop.
+5. **Agentic reasoning** — for top-ranked segments, an agent reasons about which specific intervention fits that segment's risk profile, physical character, and constraints, with peer-reviewed evidence cited (OpenAlex) — and explains *why* in plain language.
+6. **Export** — ranked segments with full attribute table, usable without this UI.
 
-First, run the development server:
+### Honesty framing
+
+EA surface-water modelling is indicative and national-scale — **not** property-level prediction. Canopy frames segment scores as *prioritisation for officer review*, carries the EA suitability/confidence flag, and keeps recommendation language calibrated ("flags", "suggests", "for review"). Priority weights are visible and adjustable, not authoritative.
+
+## Stack
+
+Next.js 15 · AI SDK v5 (Claude Sonnet 4.5, prompt-cached) · MapLibre GL · Supabase (Postgres + PostGIS) · Python data pipeline (GeoPandas) · OS Open Roads · EA RoFSW · OpenAlex
+
+## Development
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Requires `.env.local` with `ANTHROPIC_API_KEY`, Supabase keys, and (optionally) `BRIGHT_DATA_TOKEN` + `OPENALEX_EMAIL`. Data-ingest scripts live in `/pipeline`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Status
 
-## Learn More
-
-To learn more, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-- [v0 Documentation](https://v0.app/docs) - learn about v0 and how to use it.
-
-<a href="https://v0.app/chat/api/kiro/clone/AmanVernekar/v0-canopy" alt="Open in Kiro"><img src="https://pdgvvgmkdvyeydso.public.blob.vercel-storage.com/open%20in%20kiro.svg?sanitize=true" /></a>
+Prototype under active development. Data integration still maturing — see honesty framing above.
