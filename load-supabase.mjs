@@ -1,92 +1,69 @@
 /**
- * Load Canopy LSOA JSON files into Supabase.
+ * Load the road-segment GeoJSON into the canopy-roads Supabase project.
  *
- * Prereq: schema migration applied (paste supabase/migrations/0001_init.sql
- * into Supabase Dashboard → SQL Editor).
+ * Prereq: supabase/migrations/0001_road_segments.sql applied, and the three
+ * Supabase values filled in .env.local.
  *
- * Usage:
- *    node load-supabase.mjs                    # all per-city files in public/data/
- *    node load-supabase.mjs london             # one city only
- *
- * Reads .env.local for SUPABASE_URL + SERVICE_ROLE_KEY.
+ * Usage: node load-supabase.mjs [areaSlug=peckham]
  */
-import { readFileSync, readdirSync } from "node:fs"
-import { join } from "node:path"
+import { readFileSync } from "node:fs"
 import { createClient } from "@supabase/supabase-js"
 
-// ── Tiny .env.local loader (no dependency on dotenv) ──
 const envText = readFileSync(".env.local", "utf-8")
 for (const line of envText.split("\n")) {
-  const m = /^([A-Z0-9_]+)\s*=\s*(.*)$/.exec(line.trim())
+  const m = /^([A-Z0-9_]+)\s*=\s*(\S+)/.exec(line.trim())
   if (m && !process.env[m[1]]) process.env[m[1]] = m[2]
 }
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 if (!URL || !KEY) {
-  console.error("✘ Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY")
+  console.error("✘ Supabase env values missing/blank in .env.local")
   process.exit(1)
 }
 const supa = createClient(URL, KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
 })
 
-const ONLY = process.argv[2] // optional city slug
+const area = process.argv[2] ?? "peckham"
+const fc = JSON.parse(readFileSync(`public/data/segments-${area}.json`, "utf-8"))
+console.log(`▸ ${fc.features.length} segments for ${area}`)
 
-const DATA_DIR = "public/data"
-const files = readdirSync(DATA_DIR)
-  .filter((f) => /^lsoas-([a-z]+)\.json$/.test(f))
-  .filter((f) => !ONLY || f === `lsoas-${ONLY}.json`)
-
-if (files.length === 0) {
-  console.error(`✘ No lsoas-*.json files found in ${DATA_DIR}`)
-  process.exit(1)
-}
-
-const BATCH = 100
-
-for (const file of files) {
-  const slug = /^lsoas-([a-z]+)\.json$/.exec(file)[1]
-  console.log(`▸ ${file}`)
-  const raw = readFileSync(join(DATA_DIR, file), "utf-8")
-  const dataset = JSON.parse(raw)
-  const codes = Object.keys(dataset)
-  console.log(`  ${codes.length} LSOAs`)
-
-  let written = 0
-  for (let i = 0; i < codes.length; i += BATCH) {
-    const slice = codes.slice(i, i + BATCH)
-    const rows = slice.map((code) => {
-      const d = dataset[code]
-      return {
-        lsoa_code: code,
-        city: d.city ?? slug,
-        lad_name: d.lad_name ?? null,
-        name: d.name,
-        vulnerability_score: d.vulnerability_score ?? null,
-        vulnerability_flood: d.vulnerability_flood ?? null,
-        imd_decile: d.imd_decile ?? null,
-        canopy_cover_pct: d.canopy_cover_pct ?? null,
-        population: d.population ?? null,
-        pop_density_per_ha: d.pop_density_per_ha ?? null,
-        pct_over_65: d.pct_over_65 ?? null,
-        pct_under_5: d.pct_under_5 ?? null,
-        building_count: d.building_count ?? 0,
-        data: d,
-      }
-    })
-
-    const { error } = await supa
-      .from("lsoas")
-      .upsert(rows, { onConflict: "lsoa_code" })
-    if (error) {
-      console.error(`  ✘ batch ${i}-${i + slice.length}: ${error.message}`)
-      process.exit(1)
+const BATCH = 200
+let written = 0
+for (let i = 0; i < fc.features.length; i += BATCH) {
+  const slice = fc.features.slice(i, i + BATCH)
+  const rows = slice.map((f) => {
+    const p = f.properties
+    return {
+      segment_id: p.segment_id,
+      os_link_id: p.os_link_id,
+      usrn: p.usrn ?? null,
+      street_name: p.street_name ?? null,
+      road_number: p.road_number ?? null,
+      road_class: p.road_class ?? null,
+      area_slug: p.area_slug ?? area,
+      length_m: p.length_m ?? null,
+      // PostGIS geometry column accepts a GeoJSON object through PostgREST.
+      geom: f.geometry,
+      extent_high_pct: p.extent_high_pct ?? null,
+      extent_medium_pct: p.extent_medium_pct ?? null,
+      extent_low_pct: p.extent_low_pct ?? null,
+      depth_03_pct: p.depth_03_pct ?? null,
+      depth_max_m: p.depth_max_m ?? null,
+      extent_2050s_pct: p.extent_2050s_pct ?? null,
+      flood_score: p.flood_score ?? null,
+      recommended_intervention: p.recommended_intervention ?? null,
+      recommendation_rationale: p.recommendation_rationale ?? null,
+      recommendation_source: p.recommendation_source ?? null,
     }
-    written += slice.length
-    if (i % (BATCH * 5) === 0) console.log(`    ${written}/${codes.length}`)
+  })
+  const { error } = await supa.from("road_segments").upsert(rows, { onConflict: "segment_id" })
+  if (error) {
+    console.error(`✘ batch ${i}: ${error.message}`)
+    process.exit(1)
   }
-  console.log(`  ✓ wrote ${written} rows for ${slug}`)
+  written += slice.length
+  if (i % (BATCH * 5) === 0) console.log(`  ${written}/${fc.features.length}`)
 }
-
-console.log("✓ done")
+console.log(`✓ wrote ${written} segments`)
