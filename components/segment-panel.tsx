@@ -34,16 +34,21 @@ function segLabel(p: RoadSegment): string {
 }
 
 /** Download the current ranked segment set as a self-contained GeoJSON. */
-function exportGeoJSON(features: SegmentFeature[]) {
+function exportGeoJSON(
+  features: SegmentFeature[],
+  weights: import("@/lib/segments").ScoreWeights
+) {
   const ranked = features.map((f, i) => ({
     ...f,
     properties: {
       ...f.properties,
       rank: i + 1,
-      combined_score: combinedScore(f.properties),
+      combined_score: combinedScore(f.properties, weights),
+      weight_flood: weights.flood,
+      weight_heat: weights.heat,
       // Self-containment: attribution + framing carried in the file itself.
       _source:
-        "Canopy prototype — OS Open Roads (OGL) x EA Risk of Flooding from Surface Water (OGL, indicative). Scores are prioritisation signals for officer review, not property-level prediction.",
+        "Canopy prototype — OS Open Roads (OGL) x EA Risk of Flooding from Surface Water (OGL, indicative) x Landsat-8 LST + Curio Canopy (GLA). Scores are prioritisation signals for officer review, not property-level prediction.",
     },
   }))
   const fc = { type: "FeatureCollection", features: ranked }
@@ -61,16 +66,19 @@ export function SegmentPanel() {
   const selectedSegmentId = useCanopyStore((s) => s.selectedSegmentId)
   const setSelectedSegmentId = useCanopyStore((s) => s.setSelectedSegmentId)
   const setHoveredSegmentId = useCanopyStore((s) => s.setHoveredSegmentId)
+  const weights = useCanopyStore((s) => s.weights)
   const [query, setQuery] = useState("")
 
   const ranked = useMemo(() => {
     if (!segments) return []
     const fs = [...segments.features]
     fs.sort(
-      (a, b) => (combinedScore(b.properties) ?? 0) - (combinedScore(a.properties) ?? 0)
+      (a, b) =>
+        (combinedScore(b.properties, weights) ?? 0) -
+        (combinedScore(a.properties, weights) ?? 0)
     )
     return fs
-  }, [segments])
+  }, [segments, weights])
 
   const visible = useMemo(() => {
     if (!query.trim()) return ranked
@@ -113,6 +121,7 @@ export function SegmentPanel() {
           >
             <SegmentDetail
               seg={selected.properties}
+              weights={weights}
               rank={selectedRank!}
               total={ranked.length}
               onClose={() => setSelectedSegmentId(null)}
@@ -129,7 +138,7 @@ export function SegmentPanel() {
             Ranked segments ({visible.length})
           </p>
           <button
-            onClick={() => exportGeoJSON(ranked)}
+            onClick={() => exportGeoJSON(ranked, weights)}
             className="flex items-center gap-1.5 text-[10px] font-mono text-evidence-deep bg-evidence-soft hover:bg-evidence-soft/80 border border-evidence/40 rounded-md px-2 py-1 transition-colors"
             title="Ranked GeoJSON with full attribute table — drops into QGIS/ArcGIS"
           >
@@ -153,7 +162,7 @@ export function SegmentPanel() {
       <div className="flex-1 overflow-y-auto shade-scroll px-4 pb-4 space-y-1">
         {visible.slice(0, 200).map((f) => {
           const p = f.properties
-          const score = combinedScore(p) ?? 0
+          const score = combinedScore(p, weights) ?? 0
           const rank = ranked.indexOf(f) + 1
           const active = p.segment_id === selectedSegmentId
           return (
@@ -217,16 +226,18 @@ function Metric({ label, value, unit }: { label: string; value: string | number 
 
 function SegmentDetail({
   seg,
+  weights,
   rank,
   total,
   onClose,
 }: {
   seg: RoadSegment
+  weights: import("@/lib/segments").ScoreWeights
   rank: number
   total: number
   onClose: () => void
 }) {
-  const score = combinedScore(seg)
+  const score = combinedScore(seg, weights)
   return (
     <div className="space-y-3">
       <div className="flex items-start justify-between gap-2">
@@ -258,7 +269,7 @@ function SegmentDetail({
         <div className="flex-1">
           <div className="flex items-baseline justify-between">
             <span className="text-[9px] font-mono text-ink-subtle uppercase tracking-widest">
-              Flood priority score
+              Combined priority score
             </span>
             <span className={`text-base font-mono font-semibold ${scoreColour(score)}`}>
               {(score ?? 0).toFixed(2)}
@@ -269,6 +280,14 @@ function SegmentDetail({
               className={`h-full rounded ${scoreBarColour(score)}`}
               style={{ width: `${Math.max(2, (score ?? 0) * 100)}%` }}
             />
+          </div>
+          <div className="flex gap-3 mt-1.5 text-[10px] font-mono">
+            <span className="text-flood-deep">
+              flood {(seg.flood_score ?? 0).toFixed(2)}
+            </span>
+            <span className="text-heat-deep">
+              heat {seg.heat_score != null ? seg.heat_score.toFixed(2) : "—"}
+            </span>
           </div>
         </div>
       </div>
@@ -281,6 +300,9 @@ function SegmentDetail({
         <Metric label="Depth ≥0.3m" value={seg.depth_03_pct} unit="%" />
         <Metric label="Max depth" value={seg.depth_max_m} unit="m" />
         <Metric label="2050s extent" value={seg.extent_2050s_pct} unit="%" />
+        <Metric label="Summer LST" value={seg.heat_lst_mean ?? null} unit="°C" />
+        <Metric label="Canopy" value={seg.canopy_pct ?? null} unit="%" />
+        <Metric label="Heat score" value={seg.heat_score ?? null} />
       </div>
 
       {/* Recommendation */}
@@ -302,8 +324,9 @@ function SegmentDetail({
       )}
 
       <p className="text-[9px] font-mono text-ink-subtle italic leading-relaxed">
-        Indicative national-scale modelling (EA RoFSW) — a prioritisation signal
-        for officer review, not a property-level flood prediction.
+        Indicative modelling (EA RoFSW flood; Landsat-8 LST + Curio canopy for
+        heat) — prioritisation signals for officer review, not property-level
+        prediction.
       </p>
     </div>
   )

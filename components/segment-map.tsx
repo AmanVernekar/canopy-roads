@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import maplibregl from "maplibre-gl"
 import { useCanopyStore } from "@/lib/store"
-import type { SegmentCollection } from "@/lib/segments"
+import { combinedScore, type SegmentCollection } from "@/lib/segments"
 
 // Dark Carto basemap — the road-risk ramp is designed against it. Reads as an
 // ink illustration inside the paper-toned app frame (theme carried from v1).
@@ -50,6 +50,24 @@ export function SegmentMap({ className }: { className?: string }) {
   const hoveredSegmentId = useCanopyStore((s) => s.hoveredSegmentId)
   const setHoveredSegmentId = useCanopyStore((s) => s.setHoveredSegmentId)
   const setMapInstance = useCanopyStore((s) => s.setMapInstance)
+  const weights = useCanopyStore((s) => s.weights)
+
+  // Combined priority is weight-dependent, so it's computed client-side and
+  // baked into a `combined` property; the layer colour expression reads it.
+  // Recomputing 1,148 features on slider change is trivial.
+  const enriched = useMemo<SegmentCollection | null>(() => {
+    if (!segments) return null
+    return {
+      ...segments,
+      features: segments.features.map((f) => ({
+        ...f,
+        properties: {
+          ...f.properties,
+          combined: combinedScore(f.properties, weights) ?? 0,
+        },
+      })),
+    }
+  }, [segments, weights])
 
   // Load the segment layer (bundled GeoJSON; Supabase becomes canonical later)
   useEffect(() => {
@@ -95,12 +113,12 @@ export function SegmentMap({ className }: { className?: string }) {
   // Add segment layers when both map + data ready
   useEffect(() => {
     const map = mapRef.current
-    if (!map || !mapLoaded || !segments) return
+    if (!map || !mapLoaded || !enriched) return
 
     if (!map.getSource("segments")) {
       map.addSource("segments", {
         type: "geojson",
-        data: segments as GeoJSON.FeatureCollection,
+        data: enriched as GeoJSON.FeatureCollection,
         promoteId: "segment_id",
       })
 
@@ -121,15 +139,15 @@ export function SegmentMap({ className }: { className?: string }) {
           "line-color": [
             "interpolate",
             ["linear"],
-            ["coalesce", ["get", "flood_score"], 0],
+            ["coalesce", ["get", "combined"], 0],
             ...SCORE_RAMP,
           ] as any,
           "line-width": [
             "interpolate",
             ["linear"],
             ["zoom"],
-            12, ["+", 0.8, ["*", 2.4, ["coalesce", ["get", "flood_score"], 0]]],
-            16, ["+", 2.5, ["*", 6, ["coalesce", ["get", "flood_score"], 0]]],
+            12, ["+", 0.8, ["*", 2.4, ["coalesce", ["get", "combined"], 0]]],
+            16, ["+", 2.5, ["*", 6, ["coalesce", ["get", "combined"], 0]]],
           ] as any,
           "line-opacity": [
             "case",
@@ -189,7 +207,7 @@ export function SegmentMap({ className }: { className?: string }) {
 
       // Fit once to the data
       const coords: [number, number][] = []
-      for (const f of segments.features) {
+      for (const f of enriched.features) {
         for (const c of f.geometry.coordinates) coords.push(c as [number, number])
       }
       if (coords.length) {
@@ -205,10 +223,10 @@ export function SegmentMap({ className }: { className?: string }) {
       }
     } else {
       ;(map.getSource("segments") as maplibregl.GeoJSONSource).setData(
-        segments as GeoJSON.FeatureCollection
+        enriched as GeoJSON.FeatureCollection
       )
     }
-  }, [mapLoaded, segments])
+  }, [mapLoaded, enriched])
 
   // Reflect selection/hover into feature-state (no layer re-paint churn).
   const prevSel = useRef<string | null>(null)
@@ -274,7 +292,7 @@ export function SegmentMap({ className }: { className?: string }) {
       {/* Risk legend */}
       <div className="absolute bottom-10 left-4 z-10 bg-paper-elevated/90 backdrop-blur-sm border border-line-strong/60 rounded-md px-3 py-2.5">
         <p className="text-[10px] font-mono text-ink-muted uppercase tracking-widest mb-1.5">
-          Surface-water flood priority
+          Combined climate priority
         </p>
         <div
           className="w-32 h-2 rounded-sm"
@@ -288,7 +306,7 @@ export function SegmentMap({ className }: { className?: string }) {
           <span className="text-[9px] font-mono text-ink-subtle">High</span>
         </div>
         <p className="text-[8px] font-mono text-ink-subtle italic mt-1 max-w-[150px]">
-          Indicative — for prioritisation, not property-level prediction
+          Flood x heat, weights adjustable — indicative, for prioritisation
         </p>
       </div>
     </div>

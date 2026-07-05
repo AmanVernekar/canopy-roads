@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo } from "react"
-import { Droplets, Info, Layers, Route } from "lucide-react"
+import { Droplets, Flame, Info, Layers, Route, SlidersHorizontal } from "lucide-react"
 import { useCanopyStore } from "@/lib/store"
 import { combinedScore } from "@/lib/segments"
 
@@ -32,10 +32,12 @@ function Band({
 
 export function AreaOverview() {
   const segments = useCanopyStore((s) => s.segments)
+  const weights = useCanopyStore((s) => s.weights)
+  const setWeights = useCanopyStore((s) => s.setWeights)
 
   const stats = useMemo(() => {
     if (!segments) return null
-    const scores = segments.features.map((f) => combinedScore(f.properties) ?? 0)
+    const scores = segments.features.map((f) => combinedScore(f.properties, weights) ?? 0)
     const total = scores.length
     const high = scores.filter((s) => s >= 0.6).length
     const moderate = scores.filter((s) => s >= 0.35 && s < 0.6).length
@@ -51,7 +53,7 @@ export function AreaOverview() {
           10
     ).length
     return { total, high, moderate, mild, low, km, futureUplift }
-  }, [segments])
+  }, [segments, weights])
 
   return (
     <div className="h-full flex flex-col overflow-y-auto shade-scroll">
@@ -65,7 +67,7 @@ export function AreaOverview() {
         </p>
         <p className="text-[11px] text-ink-muted mt-1 leading-relaxed">
           London Borough of Southwark — road network scored for surface-water
-          flood priority at street-segment level.
+          flood and summer heat priority at street-segment level.
         </p>
         {stats && (
           <div className="grid grid-cols-2 gap-2 mt-3">
@@ -94,12 +96,44 @@ export function AreaOverview() {
         )}
       </div>
 
+      {/* ── Axis weighting ── */}
+      <div className="p-4 border-b border-line space-y-2">
+        <p className="text-[9px] font-mono text-ink-subtle uppercase tracking-widest flex items-center gap-1.5">
+          <SlidersHorizontal size={9} />
+          Priority weighting
+        </p>
+        <div className="flex items-center justify-between text-[10px] font-mono">
+          <span className="flex items-center gap-1 text-flood-deep">
+            <Droplets size={10} /> Flood {Math.round(weights.flood * 100)}%
+          </span>
+          <span className="flex items-center gap-1 text-heat-deep">
+            <Flame size={10} /> Heat {Math.round(weights.heat * 100)}%
+          </span>
+        </div>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          value={Math.round(weights.heat * 100)}
+          onChange={(e) => {
+            const heat = Number(e.target.value) / 100
+            setWeights({ heat, flood: 1 - heat })
+          }}
+          className="w-full accent-[var(--c-evidence)]"
+          aria-label="Balance flood vs heat weighting"
+        />
+        <p className="text-[9px] text-ink-subtle leading-relaxed">
+          The combined score is a weighted mean of the two axis scores — drag
+          to re-rank flood-led vs heat-led. Weights are yours, not ours.
+        </p>
+      </div>
+
       {/* ── Priority distribution ── */}
       {stats && (
         <div className="p-4 border-b border-line space-y-2">
           <p className="text-[9px] font-mono text-ink-subtle uppercase tracking-widest mb-1 flex items-center gap-1.5">
             <Droplets size={9} />
-            Flood priority bands
+            Combined priority bands
           </p>
           <Band label="High (≥0.60)" count={stats.high} total={stats.total} colour="bg-danger" />
           <Band label="Moderate (0.35–0.60)" count={stats.moderate} total={stats.total} colour="bg-warn" />
@@ -133,6 +167,11 @@ export function AreaOverview() {
             EA Risk of Flooding from Surface Water (OGL) — 2m-grid national
             modelling incl. the 2050s central-allowance climate scenario.
           </p>
+          <p>
+            <span className="font-medium text-ink">Heat:</span> Landsat-8
+            summer land-surface temperature (GLA/ARTi) + Curio Canopy cover —
+            modelled satellite data, not measured air temperature.
+          </p>
           <p className="bg-fund-soft/50 border-l-2 border-fund/50 rounded-r px-2 py-1.5 text-fund-deep">
             Scores are <strong>indicative prioritisation signals</strong> for
             officer review — the EA states this modelling is not suitable for
@@ -140,9 +179,10 @@ export function AreaOverview() {
             requiring drainage-engineering and highways sign-off.
           </p>
           <p>
-            Scoring formula is fixed and transparent: 45% High-band extent, 20%
-            Medium, 5% Low, 20% depth, 10% 2050s uplift. Heat axis lands next —
-            weights become adjustable then.
+            Axis formulas are fixed and transparent (flood: 45% High-band extent,
+            20% Medium, 5% Low, 20% depth, 10% 2050s uplift; heat: 60% summer
+            land-surface temperature, 40% canopy deficit). The flood/heat balance
+            is yours to set above.
           </p>
         </div>
       </div>
