@@ -20,6 +20,8 @@ node_modules
 
 # Local data + tooling
 raw/
+pipeline/out/
+__pycache__/
 .mypy_cache/
 .dmypy.json
 
