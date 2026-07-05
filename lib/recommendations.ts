@@ -18,10 +18,10 @@ export interface Recommendation {
 }
 
 export function deterministicRecommendation(
-  seg: Pick<RoadSegment, "flood_score" | "road_class" | "flood">
+  seg: Pick<RoadSegment, "flood_score" | "road_class" | "extent_high_pct">
 ): Recommendation {
   const score = seg.flood_score ?? 0
-  const extent30 = seg.flood.extent_1in30_pct ?? 0
+  const extentHigh = seg.extent_high_pct ?? 0
   const isMainRoad =
     typeof seg.road_class === "string" && /^(A|B) Road/i.test(seg.road_class)
 
@@ -40,7 +40,7 @@ export function deterministicRecommendation(
     }
   }
 
-  if (score >= 0.35 || extent30 > 10) {
+  if (score >= 0.35 || extentHigh > 10) {
     return {
       intervention: "Raingarden at identified low point",
       rationale:

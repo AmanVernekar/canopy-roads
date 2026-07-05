@@ -1,32 +1,23 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { HelpCircle, MapPin } from "lucide-react"
-import { AgentPanel } from "@/components/agent-panel"
-// Static import keeps lib/store in a single bundle, so AgentPanel and LsoaMap
-// share the same Zustand instance. We delay actually rendering LsoaMap until
-// client-side mount because maplibre touches window.
-import { LsoaMap } from "@/components/lsoa-map"
-import { IntroModal } from "@/components/intro-modal"
-import { LeftSidebar } from "@/components/left-sidebar"
-import { useCanopyStore, CITIES, type CitySlug } from "@/lib/store"
+import { AreaOverview } from "@/components/area-overview"
+import { SegmentPanel } from "@/components/segment-panel"
+// Map touches window — render only after client mount.
+import { SegmentMap } from "@/components/segment-map"
 
 // Minimum widths in percent so a column can't be dragged into invisibility.
 const MIN_LEFT_PCT = 12
 const MIN_RIGHT_PCT = 18
 const MIN_CENTRE_PCT = 28
-const STORAGE_KEY = "canopy:column-widths-v1"
+const STORAGE_KEY = "canopy-roads:column-widths-v1"
 
 export default function Page() {
   const [mounted, setMounted] = useState(false)
-  const [introOpen, setIntroOpen] = useState<boolean | undefined>(undefined)
-  const selectedCity = useCanopyStore((s) => s.selectedCity)
-  const setSelectedCity = useCanopyStore((s) => s.setSelectedCity)
 
-  // Column widths in percent. Centre column is computed (100 - left - right)
-  // so the layout always fills the viewport regardless of drag direction.
-  const [leftPct, setLeftPct] = useState(22)
-  const [rightPct, setRightPct] = useState(30)
+  // Column widths in percent; centre = 100 - left - right.
+  const [leftPct, setLeftPct] = useState(20)
+  const [rightPct, setRightPct] = useState(28)
   const draggingRef = useRef<"left" | "right" | null>(null)
 
   useEffect(() => {
@@ -45,7 +36,6 @@ export default function Page() {
     }
   }, [])
 
-  // Persist widths after each drag ends — debounced via the dragend handler.
   const persist = useCallback((l: number, r: number) => {
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ left: l, right: r }))
@@ -54,23 +44,17 @@ export default function Page() {
     }
   }, [])
 
-  // Live drag — bind document-level listeners so the user can drag past the
-  // handle without losing capture. Compute new widths as percent of viewport.
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (!draggingRef.current) return
       const vw = window.innerWidth || 1
       const xPct = (e.clientX / vw) * 100
-
       if (draggingRef.current === "left") {
-        // Drag handle is between left and centre. The new leftPct is xPct.
-        const newLeft = Math.max(MIN_LEFT_PCT, Math.min(xPct, 100 - rightPct - MIN_CENTRE_PCT))
-        setLeftPct(newLeft)
+        setLeftPct(Math.max(MIN_LEFT_PCT, Math.min(xPct, 100 - rightPct - MIN_CENTRE_PCT)))
       } else {
-        // Drag handle is between centre and right. The new rightPct is
-        // (100 - xPct), since x is measured from the LEFT viewport edge.
-        const newRight = Math.max(MIN_RIGHT_PCT, Math.min(100 - xPct, 100 - leftPct - MIN_CENTRE_PCT))
-        setRightPct(newRight)
+        setRightPct(
+          Math.max(MIN_RIGHT_PCT, Math.min(100 - xPct, 100 - leftPct - MIN_CENTRE_PCT))
+        )
       }
     }
     const onUp = () => {
@@ -100,28 +84,22 @@ export default function Page() {
 
   return (
     <main className="flex h-screen w-screen overflow-hidden bg-paper text-ink">
-      {/* ── Left strip — saved analyses + live interventions banner ── */}
+      {/* ── Left: area overview + provenance ── */}
       <aside style={{ width: `${leftPct}%` }} className="flex flex-col h-full">
-        {/* Spacer to align with map header */}
         <div className="flex-shrink-0 h-12 border-b border-line bg-paper-elevated/95 flex items-center px-4">
           <span className="text-[10px] font-mono text-ink-subtle uppercase tracking-widest">
-            Context
+            Area
           </span>
         </div>
         <div className="flex-1 min-h-0">
-          <LeftSidebar />
+          <AreaOverview />
         </div>
       </aside>
 
-      {/* Resize handle — left/centre */}
       <ResizeHandle onMouseDown={startDrag("left")} />
 
-      {/* ── Centre column — map ── */}
-      <section
-        className="relative flex flex-col"
-        style={{ width: `${centrePct}%` }}
-      >
-        {/* Header bar — paper-toned, document-like */}
+      {/* ── Centre: segment map ── */}
+      <section className="relative flex flex-col" style={{ width: `${centrePct}%` }}>
         <header className="flex-shrink-0 flex items-center gap-3 px-5 h-12 border-b border-line bg-paper-elevated/95 backdrop-blur-sm z-20">
           <div className="flex items-baseline gap-2.5">
             <span
@@ -131,65 +109,37 @@ export default function Page() {
               Canopy
             </span>
             <span className="text-[11px] text-ink-subtle font-mono hidden sm:inline">
-              Climate adaptation planner · heat + flood
+              Road-network climate-risk ranking · prototype
             </span>
           </div>
           <div className="flex-1" />
-          {/* City selector */}
-          <div className="flex items-center gap-1.5 mr-2">
-            <MapPin size={11} className="text-ink-subtle" />
-            <select
-              value={selectedCity}
-              onChange={(e) => setSelectedCity(e.target.value as CitySlug)}
-              aria-label="Select city"
-              className="bg-paper border border-line rounded px-2 py-1 text-[11px] font-mono text-ink hover:border-line-strong focus:outline-none focus:border-evidence/60 transition-colors"
-            >
-              {CITIES.map((c) => (
-                <option key={c.slug} value={c.slug}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <button
-            type="button"
-            onClick={() => setIntroOpen(true)}
-            aria-label="Show intro"
-            className="flex items-center gap-1 text-[11px] font-mono text-ink-subtle hover:text-ink transition-colors"
-          >
-            <HelpCircle size={12} />
-            How this works
-          </button>
+          <span className="text-[10px] font-mono text-ink-subtle hidden md:inline">
+            Southwark · Peckham demo
+          </span>
         </header>
-
-        {/* Map fills remaining height */}
-        <div className="flex-1 relative">
-          {mounted && <LsoaMap />}
-        </div>
+        <div className="flex-1 relative">{mounted && <SegmentMap />}</div>
       </section>
 
-      {/* Resize handle — centre/right */}
       <ResizeHandle onMouseDown={startDrag("right")} />
 
-      {/* ── Right column — agent / dossier ── */}
+      {/* ── Right: ranked segments + detail + export ── */}
       <section
-        className="flex flex-col overflow-y-auto shade-scroll bg-paper"
+        className="flex flex-col bg-paper overflow-hidden"
         style={{ width: `${rightPct}%` }}
       >
-        <AgentPanel />
+        <div className="flex-shrink-0 h-12 border-b border-line bg-paper-elevated/95 flex items-center px-4">
+          <span className="text-[10px] font-mono text-ink-subtle uppercase tracking-widest">
+            Priority ranking
+          </span>
+        </div>
+        <div className="flex-1 min-h-0">
+          <SegmentPanel />
+        </div>
       </section>
-
-      {/* First-load intro + reopen-via-help-button. */}
-      <IntroModal openOverride={introOpen} onClose={() => setIntroOpen(undefined)} />
     </main>
   )
 }
 
-/**
- * Vertical drag-to-resize splitter. 4px wide visible band; widens on hover.
- * Cursor changes to col-resize on the whole document during drag (set by the
- * parent's startDrag) so the user can drag freely without losing capture.
- */
 function ResizeHandle({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => void }) {
   return (
     <div
@@ -198,10 +148,7 @@ function ResizeHandle({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => v
       onMouseDown={onMouseDown}
       className="group relative flex-shrink-0 w-1 cursor-col-resize bg-line hover:bg-line-strong transition-colors"
     >
-      {/* Wider invisible hit area for easier grabbing without making the
-          visible band thicker. */}
       <div className="absolute inset-y-0 -left-1.5 -right-1.5" />
-      {/* Subtle handle indicator on hover */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-8 bg-ink-faint opacity-0 group-hover:opacity-60 rounded transition-opacity" />
     </div>
   )

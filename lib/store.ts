@@ -1,6 +1,8 @@
 import { create } from "zustand"
 import type { Map as MapLibreMap } from "maplibre-gl"
 import type { UIMessage } from "ai"
+import type { ScoreWeights, SegmentCollection } from "@/lib/segments"
+import { DEFAULT_WEIGHTS } from "@/lib/segments"
 
 export interface LsoaFeature {
   name: string
@@ -101,6 +103,16 @@ export const CITIES: { slug: CitySlug; label: string; centre: [number, number]; 
 ]
 
 interface CanopyStore {
+  // ─── v2: road-segment state ─────────────────────────────────────────
+  segments: SegmentCollection | null
+  selectedSegmentId: string | null
+  hoveredSegmentId: string | null
+  weights: ScoreWeights
+  setSegments: (s: SegmentCollection | null) => void
+  setSelectedSegmentId: (id: string | null) => void
+  setHoveredSegmentId: (id: string | null) => void
+  setWeights: (w: ScoreWeights) => void
+  // ─── v1 (dormant) ───────────────────────────────────────────────────
   selectedCity: CitySlug
   vulnerabilityAxis: VulnerabilityAxis
   selectedLsoa: string | null
@@ -137,6 +149,14 @@ interface CanopyStore {
 }
 
 export const useCanopyStore = create<CanopyStore>((set) => ({
+  segments: null,
+  selectedSegmentId: null,
+  hoveredSegmentId: null,
+  weights: DEFAULT_WEIGHTS,
+  setSegments: (s) => set({ segments: s }),
+  setSelectedSegmentId: (id) => set({ selectedSegmentId: id }),
+  setHoveredSegmentId: (id) => set({ hoveredSegmentId: id }),
+  setWeights: (w) => set({ weights: w }),
   selectedCity: "london",
   vulnerabilityAxis: "heat",
   selectedLsoa: null,
